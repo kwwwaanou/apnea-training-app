@@ -30,7 +30,17 @@ export const AuthView: React.FC = () => {
         if (error) throw error;
       }
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'An error occurred' });
+      let errorMessage = error.message || 'An error occurred';
+      
+      if (errorMessage.includes('Invalid API key') || errorMessage.includes('apiKey')) {
+        errorMessage = 'Configuration Error: Invalid API key. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in Vercel.';
+      } else if (errorMessage.includes('rate limit') || error.status === 429) {
+        errorMessage = 'Email rate limit exceeded. Please wait a few minutes before trying again, or try signing in with a different method.';
+      } else if (error.message === 'Failed to fetch') {
+        errorMessage = 'Network error: Please check your internet connection or verify your Supabase configuration.';
+      }
+
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -48,7 +58,17 @@ export const AuthView: React.FC = () => {
       if (error) throw error;
       setMessage({ type: 'success', text: 'Magic link sent! Check your email.' });
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'An error occurred' });
+      let errorMessage = error.message || 'An error occurred';
+      
+      if (errorMessage.includes('Invalid API key') || errorMessage.includes('apiKey')) {
+        errorMessage = 'Configuration Error: Invalid API key. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in Vercel.';
+      } else if (errorMessage.includes('rate limit') || error.status === 429) {
+        errorMessage = 'Email rate limit exceeded. Please wait a few minutes before trying again, or use your password to sign in.';
+      } else if (error.message === 'Failed to fetch') {
+        errorMessage = 'Network error: Please check your connection.';
+      }
+
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
