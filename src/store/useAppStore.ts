@@ -51,6 +51,7 @@ interface AppState {
   isActive: boolean;
   isInitialSyncDone: boolean;
   isGuest: boolean;
+  isHydrated: boolean; // Add hydration flag
   
   // Actions
   setUser: (user: User | null) => void;
@@ -67,6 +68,7 @@ interface AppState {
   setSafetyAcknowledged: (acknowledged: boolean) => Promise<void>;
   exportData: () => string;
   importData: (jsonData: string) => Promise<{ success: boolean; message: string }>;
+  setHydrated: () => void;
 }
 
 const initialState = {
@@ -80,12 +82,15 @@ const initialState = {
   isActive: false,
   isInitialSyncDone: false,
   isGuest: false,
+  isHydrated: false,
 };
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       ...initialState,
+
+      setHydrated: () => set({ isHydrated: true }),
 
       setUser: (user) => {
         set({ user, isGuest: false });
@@ -375,6 +380,9 @@ export const useAppStore = create<AppState>()(
     {
       name: 'apnea-storage-v2',
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: (state) => {
+        return () => state.setHydrated();
+      },
       partialize: (state) => ({
         history: state.history,
         profile: state.profile,

@@ -6,9 +6,11 @@ import { AuthView } from './components/AuthView';
 import { supabase } from './lib/supabase';
 
 function App() {
-  const { isActive, user, setUser } = useAppStore();
+  const { isActive, user, setUser, isGuest, isHydrated, isInitialSyncDone } = useAppStore();
 
   useEffect(() => {
+    if (!isHydrated) return;
+
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -20,9 +22,17 @@ function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, [setUser]);
+  }, [setUser, isHydrated]);
 
-  if (!user) {
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!user && !isGuest) {
     return (
       <div className="min-h-screen bg-black text-white">
         <AuthView />
