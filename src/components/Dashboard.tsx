@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore, TableConfig } from '../store/useAppStore';
-import { Play, History, Clock, Settings, User, TrendingUp, ShieldAlert, CheckCircle2, LogOut, Cloud, Edit2, Check, X } from 'lucide-react';
+import { Play, History, Clock, Settings, User, TrendingUp, ShieldAlert, CheckCircle2, LogOut, Cloud, Edit2, Check, X, Download, Upload, Database } from 'lucide-react';
 import { audioEngine } from '../lib/audio';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabase';
@@ -18,6 +18,8 @@ export const Dashboard: React.FC = () => {
   const [isEditingPB, setIsEditingPB] = useState(false);
   const [newPBValue, setNewPBValue] = useState('');
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+
+  const { exportData, importData } = useAppStore();
 
   const showToast = (message: string) => {
     setToast({ message, visible: true });
@@ -52,6 +54,40 @@ export const Dashboard: React.FC = () => {
       setIsEditingPB(false);
       showToast('Personal Best updated successfully!');
     }
+  };
+
+  const handleExport = () => {
+    const data = exportData();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `apnea-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    showToast('Backup exported!');
+  };
+
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (re) => {
+          const content = re.target?.result as string;
+          const result = await importData(content);
+          if (result.success) {
+            showToast(result.message);
+          } else {
+            alert(result.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
   };
 
   const smartCO2: TableConfig = {
@@ -239,6 +275,48 @@ export const Dashboard: React.FC = () => {
             <p className="text-gray-400">Run a Diagnostic to unlock Adaptive Smart Tables.</p>
           </div>
         )}
+      </section>
+
+      {/* Data & Settings */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold flex items-center gap-2 text-white">
+          <Database size={18} className="text-blue-500" />
+          Data & Settings
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button 
+            onClick={() => {
+              setNewPBValue(profile.maxHoldBaseline.toString());
+              setIsEditingPB(true);
+            }}
+            className="bg-gray-900 border border-gray-800 p-6 rounded-2xl flex flex-col items-center gap-3 hover:border-blue-500 transition-all group"
+          >
+            <div className="bg-blue-500/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
+              <Edit2 size={24} className="text-blue-500" />
+            </div>
+            <span className="font-bold text-white">Set Record</span>
+          </button>
+          
+          <button 
+            onClick={handleExport}
+            className="bg-gray-900 border border-gray-800 p-6 rounded-2xl flex flex-col items-center gap-3 hover:border-green-500 transition-all group"
+          >
+            <div className="bg-green-500/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
+              <Download size={24} className="text-green-500" />
+            </div>
+            <span className="font-bold text-white">Export Backup</span>
+          </button>
+
+          <button 
+            onClick={handleImport}
+            className="bg-gray-900 border border-gray-800 p-6 rounded-2xl flex flex-col items-center gap-3 hover:border-purple-500 transition-all group"
+          >
+            <div className="bg-purple-500/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
+              <Upload size={24} className="text-purple-500" />
+            </div>
+            <span className="font-bold text-white">Import Backup</span>
+          </button>
+        </div>
       </section>
 
       {/* History */}

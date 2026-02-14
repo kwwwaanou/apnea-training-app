@@ -41,8 +41,13 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {isActive ? <TimerView /> : <Dashboard />}
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      <div className="flex-grow">
+        {isActive ? <TimerView /> : <Dashboard />}
+      </div>
+      <footer className="py-4 text-center text-[10px] text-gray-700 uppercase tracking-widest border-t border-gray-900/50">
+        App Version: v1.2.0-stable
+      </footer>
     </div>
   );
 }

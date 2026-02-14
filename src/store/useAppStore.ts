@@ -102,6 +102,12 @@ export const useAppStore = create<AppState>()(
       },
 
       setGuestUser: (username) => {
+        const existing = get().profile;
+        if (existing && existing.username === username) {
+          set({ isGuest: true, user: null });
+          return;
+        }
+
         const guestProfile: UserProfile = {
           id: 'guest',
           username: username || 'Guest',
@@ -378,7 +384,7 @@ export const useAppStore = create<AppState>()(
       }
     }),
     {
-      name: 'apnea-storage-v2',
+      name: 'apnea-storage-v5',
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: (state) => {
         return () => state.setHydrated();
