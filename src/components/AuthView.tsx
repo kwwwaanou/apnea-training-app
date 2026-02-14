@@ -41,7 +41,7 @@ export const AuthView: React.FC = () => {
       }
 
       const finalEmail = authMode === 'QUICK_SYNC' 
-        ? `${username.trim().toLowerCase()}@apnea.local`
+        ? `${username.trim().toLowerCase()}@apnea-training.com`
         : email;
 
       if (isSignUp) {
@@ -147,7 +147,7 @@ export const AuthView: React.FC = () => {
               />
             </div>
             {authMode === 'QUICK_SYNC' && (
-              <p className="text-[10px] text-slate-500 ml-1">Will be stored as {username || 'user'}@apnea.local</p>
+              <p className="text-[10px] text-slate-500 ml-1">Will be stored as {username || 'user'}@apnea-training.com</p>
             )}
           </div>
 
