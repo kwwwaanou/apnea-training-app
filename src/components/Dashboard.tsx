@@ -1,42 +1,25 @@
 import React, { useState } from 'react';
 import { useAppStore, TableConfig } from '../store/useAppStore';
-import { Play, History, Clock, Settings, User, TrendingUp, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Play, History, Clock, Settings, User, TrendingUp, ShieldAlert, CheckCircle2, LogOut, Cloud } from 'lucide-react';
 import { audioEngine } from '../lib/audio';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { supabase } from '../lib/supabase';
 
 export const Dashboard: React.FC = () => {
   const { 
-    profile, setProfile, startSession, history, clearHistory, 
-    setSafetyAcknowledged 
+    profile, startSession, history, clearHistory, 
+    setSafetyAcknowledged, user 
   } = useAppStore();
   
-  const [usernameInput, setUsernameInput] = useState('');
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingTable, setPendingTable] = useState<TableConfig | null>(null);
 
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-gray-900 border border-gray-800 p-8 rounded-3xl space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-black tracking-tight italic">APNEA<span className="text-primary text-blue-500">CORE</span></h1>
-            <p className="text-gray-400">Welcome. What should we call you?</p>
-          </div>
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Username"
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              className="w-full bg-black border border-gray-800 rounded-xl p-4 text-white focus:outline-none focus:border-blue-500"
-            />
-            <button
-              onClick={() => usernameInput && setProfile(usernameInput)}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-colors"
-            >
-              Get Started
-            </button>
-          </div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p className="text-slate-400">Loading your profile...</p>
         </div>
       </div>
     );
@@ -96,16 +79,26 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8">
       <header className="flex justify-between items-center py-4">
-        <h1 className="text-2xl font-black tracking-tight italic">APNEA<span className="text-blue-500">CORE</span></h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-black tracking-tight italic">APNEA<span className="text-blue-500">CORE</span></h1>
+          <div className="bg-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-700">
+            <Cloud size={12} className="text-blue-400" />
+            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Cloud Sync</span>
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
-            <div className="text-sm font-bold">{profile.username}</div>
+            <div className="text-sm font-bold text-white">{profile.username}</div>
             <div className="text-[10px] text-gray-500 uppercase tracking-widest">
               PB: {Math.floor(profile.maxHoldBaseline / 60)}:{(profile.maxHoldBaseline % 60).toString().padStart(2, '0')}
             </div>
           </div>
-          <button className="bg-gray-900 p-3 rounded-full border border-gray-800 text-gray-400 hover:text-white">
-            <User size={20} />
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="bg-gray-900 p-3 rounded-full border border-gray-800 text-gray-400 hover:text-white transition-colors"
+            title="Sign Out"
+          >
+            <LogOut size={20} />
           </button>
         </div>
       </header>
@@ -114,7 +107,7 @@ export const Dashboard: React.FC = () => {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-gray-900 border border-gray-800 p-6 rounded-3xl space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="font-bold flex items-center gap-2">
+            <h2 className="font-bold flex items-center gap-2 text-white">
               <TrendingUp size={18} className="text-blue-500" />
               Progress
             </h2>
@@ -127,7 +120,7 @@ export const Dashboard: React.FC = () => {
                   <XAxis dataKey="date" hide />
                   <YAxis hide domain={['auto', 'auto']} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937' }}
+                    contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '12px' }}
                     itemStyle={{ color: '#3b82f6' }}
                   />
                   <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6' }} />
@@ -157,7 +150,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Training Tables */}
       <section className="space-y-4">
-        <h2 className="text-lg font-bold flex items-center gap-2">
+        <h2 className="text-lg font-bold flex items-center gap-2 text-white">
           <Play size={18} className="text-blue-500" fill="currentColor" />
           Training Plans
         </h2>
@@ -167,7 +160,7 @@ export const Dashboard: React.FC = () => {
               onClick={() => handleStartSession(smartCO2)}
               className="bg-gray-900 border border-gray-800 p-6 rounded-2xl text-left hover:border-blue-500 transition-all"
             >
-              <h3 className="font-bold text-xl mb-1">Adaptive CO2</h3>
+              <h3 className="font-bold text-xl mb-1 text-white">Adaptive CO2</h3>
               <p className="text-gray-500 text-sm">
                 Rounds: 8 • Hold: {smartCO2.initialHoldTime}s (50%)
               </p>
@@ -176,7 +169,7 @@ export const Dashboard: React.FC = () => {
               onClick={() => handleStartSession(smartO2)}
               className="bg-gray-900 border border-gray-800 p-6 rounded-2xl text-left hover:border-blue-500 transition-all"
             >
-              <h3 className="font-bold text-xl mb-1">Adaptive O2</h3>
+              <h3 className="font-bold text-xl mb-1 text-white">Adaptive O2</h3>
               <p className="text-gray-500 text-sm">
                 Rounds: 8 • Rest: {smartO2.initialRestTime}s (100%)
               </p>
@@ -192,7 +185,7 @@ export const Dashboard: React.FC = () => {
       {/* History */}
       <section className="space-y-4">
         <div className="flex justify-between items-end">
-          <h2 className="text-lg font-bold flex items-center gap-2">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-white">
             <History size={18} className="text-blue-500" />
             Recent Logs
           </h2>
@@ -205,9 +198,9 @@ export const Dashboard: React.FC = () => {
 
         <div className="space-y-2">
           {history.slice(0, 5).map((record) => (
-            <div key={record.id} className="bg-gray-900 border border-gray-800 p-4 rounded-xl flex justify-between items-center">
+            <div key={record.id} className="bg-gray-900 border border-gray-800 p-4 rounded-xl flex justify-between items-center hover:bg-slate-800/50 transition-colors">
               <div>
-                <h4 className="font-semibold text-sm">{record.tableName}</h4>
+                <h4 className="font-semibold text-sm text-white">{record.tableName}</h4>
                 <p className="text-[10px] text-gray-500 uppercase tracking-tighter">
                   {new Date(record.timestamp).toLocaleDateString()}
                 </p>
@@ -222,14 +215,14 @@ export const Dashboard: React.FC = () => {
             </div>
           ))}
           {history.length === 0 && (
-             <div className="text-gray-600 text-sm italic py-4">No records found.</div>
+             <div className="text-gray-600 text-sm italic py-4 text-center">No records found. Training sessions will be synced here.</div>
           )}
         </div>
       </section>
 
       {/* Safety Modal */}
       {showSafetyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
           <div className="max-w-md w-full bg-gray-900 border border-red-900/50 p-8 rounded-3xl space-y-6 shadow-2xl">
             <div className="flex justify-center">
               <div className="bg-red-500/10 p-4 rounded-full">

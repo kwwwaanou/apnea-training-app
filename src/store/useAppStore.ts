@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { supabase } from '../lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 export type Phase = 'PREPARATION' | 'HOLD' | 'BREATHE' | 'FINISHED' | 'DIAGNOSTIC';
 
 export interface UserProfile {
+  id: string;
   username: string;
   maxHoldBaseline: number; // seconds
   lastDiagnosticDate: number;
@@ -26,7 +29,8 @@ export interface TableConfig {
 
 export interface SessionRecord {
   id: string;
-  username: string;
+  username?: string;
+  user_id?: string;
   configId: string;
   tableName: string;
   timestamp: number;
@@ -37,6 +41,7 @@ export interface SessionRecord {
 }
 
 interface AppState {
+  user: User | null;
   profile: UserProfile | null;
   currentPhase: Phase;
   timeLeft: number;
@@ -44,21 +49,25 @@ interface AppState {
   history: SessionRecord[];
   activeConfig: TableConfig | null;
   isActive: boolean;
+  isInitialSyncDone: boolean;
   
   // Actions
-  setProfile: (username: string) => void;
-  updateMaxHold: (seconds: number) => void;
+  setUser: (user: User | null) => void;
+  setProfile: (profile: UserProfile) => void;
+  syncData: () => Promise<void>;
+  updateMaxHold: (seconds: number) => Promise<void>;
   startSession: (config: TableConfig) => void;
   stopSession: () => void;
   tick: () => void;
-  addHistory: (record: SessionRecord) => void;
+  addHistory: (record: SessionRecord) => Promise<void>;
   clearHistory: () => void;
-  setSafetyAcknowledged: (acknowledged: boolean) => void;
+  setSafetyAcknowledged: (acknowledged: boolean) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      user: null,
       profile: null,
       currentPhase: 'PREPARATION',
       timeLeft: 0,
@@ -66,46 +75,150 @@ export const useAppStore = create<AppState>()(
       history: [],
       activeConfig: null,
       isActive: false,
+      isInitialSyncDone: false,
 
-      setProfile: (username) => {
-        set({
-          profile: {
-            username,
-            maxHoldBaseline: 0,
-            lastDiagnosticDate: 0,
-            preferences: {
-              voiceCues: true,
-              safetyAcknowledged: false,
-            },
-          },
-        });
-      },
-
-      updateMaxHold: (seconds) => {
-        const { profile } = get();
-        if (profile) {
-          set({
-            profile: {
-              ...profile,
-              maxHoldBaseline: seconds,
-              lastDiagnosticDate: Date.now(),
-            },
-          });
+      setUser: (user) => {
+        set({ user });
+        if (user) {
+          get().syncData();
+        } else {
+          set({ profile: null, isInitialSyncDone: false });
         }
       },
 
-      setSafetyAcknowledged: (acknowledged) => {
-        const { profile } = get();
-        if (profile) {
+      setProfile: (profile) => {
+        set({ profile });
+      },
+
+      syncData: async () => {
+        const { user, history } = get();
+        if (!user) return;
+
+        // 1. Fetch Profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError && profileError.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          const newProfile = {
+            id: user.id,
+            username: user.email?.split('@')[0] || 'User',
+            max_hold_baseline: 0,
+            last_diagnostic_date: 0,
+            preferences: { voiceCues: true, safetyAcknowledged: false }
+          };
+          await supabase.from('profiles').insert(newProfile);
+          set({ 
+            profile: {
+              id: user.id,
+              username: newProfile.username,
+              maxHoldBaseline: 0,
+              lastDiagnosticDate: 0,
+              preferences: newProfile.preferences
+            }
+          });
+        } else if (profileData) {
           set({
             profile: {
-              ...profile,
-              preferences: {
-                ...profile.preferences,
-                safetyAcknowledged: acknowledged,
-              },
-            },
+              id: profileData.id,
+              username: profileData.username,
+              maxHoldBaseline: profileData.max_hold_baseline,
+              lastDiagnosticDate: profileData.last_diagnostic_date,
+              preferences: profileData.preferences
+            }
           });
+        }
+
+        // 2. Sync History
+        // Fetch remote history
+        const { data: remoteHistory, error: historyError } = await supabase
+          .from('training_sessions')
+          .select('*')
+          .order('timestamp', { ascending: false });
+
+        if (!historyError && remoteHistory) {
+          const formattedRemote = remoteHistory.map(r => ({
+            id: r.id,
+            user_id: r.user_id,
+            configId: r.config_id,
+            tableName: r.table_name,
+            timestamp: r.timestamp,
+            completedRounds: r.completed_rounds,
+            totalDuration: r.total_duration,
+            completed: r.completed,
+            notes: r.notes
+          }));
+
+          // Merge local and remote (simplistic: remote wins for duplicates)
+          const localIds = new Set(history.map(h => h.id));
+          const newToRemote = history.filter(h => !remoteHistory.find(r => r.id === h.id));
+
+          // Upload new local records to remote
+          if (newToRemote.length > 0) {
+            const toUpload = newToRemote.map(h => ({
+              id: h.id,
+              user_id: user.id,
+              config_id: h.configId,
+              table_name: h.tableName,
+              timestamp: h.timestamp,
+              completed_rounds: h.completedRounds,
+              total_duration: h.totalDuration,
+              completed: h.completed,
+              notes: h.notes
+            }));
+            await supabase.from('training_sessions').insert(toUpload);
+          }
+
+          // Update local state with merged history
+          const mergedHistory = [...formattedRemote];
+          set({ history: mergedHistory.slice(0, 100), isInitialSyncDone: true });
+        }
+      },
+
+      updateMaxHold: async (seconds) => {
+        const { profile, user } = get();
+        const now = Date.now();
+        if (profile) {
+          const updatedProfile = {
+            ...profile,
+            maxHoldBaseline: seconds,
+            lastDiagnosticDate: now,
+          };
+          set({ profile: updatedProfile });
+
+          if (user) {
+            await supabase
+              .from('profiles')
+              .update({ 
+                max_hold_baseline: seconds, 
+                last_diagnostic_date: now 
+              })
+              .eq('id', user.id);
+          }
+        }
+      },
+
+      setSafetyAcknowledged: async (acknowledged) => {
+        const { profile, user } = get();
+        if (profile) {
+          const updatedProfile = {
+            ...profile,
+            preferences: {
+              ...profile.preferences,
+              safetyAcknowledged: acknowledged,
+            },
+          };
+          set({ profile: updatedProfile });
+
+          if (user) {
+            await supabase
+              .from('profiles')
+              .update({ preferences: updatedProfile.preferences })
+              .eq('id', user.id);
+          }
         }
       },
 
@@ -113,18 +226,16 @@ export const useAppStore = create<AppState>()(
         set({
           activeConfig: config,
           currentPhase: config.type === 'Diagnostic' ? 'DIAGNOSTIC' : 'PREPARATION',
-          timeLeft: config.type === 'Diagnostic' ? 0 : 15, // Diagnostic starts at 0 and counts UP
+          timeLeft: config.type === 'Diagnostic' ? 0 : 15,
           currentRound: 1,
           isActive: true,
         });
       },
 
       stopSession: () => {
-        const { currentPhase, timeLeft, activeConfig } = get();
+        const { currentPhase, timeLeft } = get();
         if (currentPhase === 'DIAGNOSTIC') {
-          // Diagnostic is finished when user stops it
-          const duration = timeLeft;
-          get().updateMaxHold(duration);
+          get().updateMaxHold(timeLeft);
         }
         set({ isActive: false, currentPhase: 'FINISHED' });
       },
@@ -134,7 +245,6 @@ export const useAppStore = create<AppState>()(
         if (!isActive || !activeConfig) return;
 
         if (currentPhase === 'DIAGNOSTIC') {
-          // Diagnostic counts UP
           set({ timeLeft: timeLeft + 1 });
           return;
         }
@@ -142,7 +252,6 @@ export const useAppStore = create<AppState>()(
         if (timeLeft > 0) {
           set({ timeLeft: timeLeft - 1 });
         } else {
-          // Phase transition
           if (currentPhase === 'PREPARATION') {
             set({ 
               currentPhase: 'HOLD', 
@@ -168,14 +277,33 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      addHistory: (record) => {
+      addHistory: async (record) => {
+        const { user } = get();
         set((state) => ({ history: [record, ...state.history].slice(0, 100) }));
+
+        if (user) {
+          await supabase.from('training_sessions').insert({
+            id: record.id,
+            user_id: user.id,
+            config_id: record.configId,
+            table_name: record.tableName,
+            timestamp: record.timestamp,
+            completed_rounds: record.completedRounds,
+            total_duration: record.totalDuration,
+            completed: record.completed,
+            notes: record.notes
+          });
+        }
       },
 
       clearHistory: () => set({ history: [] }),
     }),
     {
       name: 'apnea-storage-v2',
+      partialize: (state) => ({
+        history: state.history,
+        profile: state.profile,
+      }),
     }
   )
 );
