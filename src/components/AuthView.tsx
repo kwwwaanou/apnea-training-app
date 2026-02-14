@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { LogIn, Lock, UserPlus, Loader2, Cloud, User, Smartphone } from 'lucide-react';
@@ -14,9 +14,10 @@ export const AuthView: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   
-  const { setGuestUser } = useAppStore();
+  // Explicitly extract setGuestUser and ensure it's stable
+  const setGuestUser = useAppStore((state) => state.setGuestUser);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleAuth = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
@@ -24,7 +25,18 @@ export const AuthView: React.FC = () => {
     try {
       if (authMode === 'LOCAL_ONLY') {
         if (!username.trim()) throw new Error('Please enter a username');
-        setGuestUser(username);
+        
+        // Wrap store action in try-catch to prevent crash if store is not yet initialized
+        try {
+          if (typeof setGuestUser === 'function') {
+            setGuestUser(username);
+          } else {
+            throw new Error('Store service is currently unavailable. Please refresh.');
+          }
+        } catch (storeErr: any) {
+          console.error('Store error:', storeErr);
+          throw new Error('Application state error. Please try again or refresh.');
+        }
         return;
       }
 
@@ -45,8 +57,6 @@ export const AuthView: React.FC = () => {
         if (error) throw error;
         
         if (authMode === 'QUICK_SYNC') {
-          // For Quick Sync, we try to sign in immediately after sign up 
-          // because we assume email confirmation is disabled/not needed for @apnea.local
           const { error: signInError } = await supabase.auth.signInWithPassword({
             email: finalEmail,
             password,
@@ -63,6 +73,7 @@ export const AuthView: React.FC = () => {
         if (error) throw error;
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       let errorMessage = error.message || 'An error occurred';
       
       if (errorMessage.includes('Invalid API key') || errorMessage.includes('apiKey')) {
@@ -75,7 +86,7 @@ export const AuthView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authMode, username, email, password, isSignUp, setGuestUser]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
@@ -125,11 +136,7 @@ export const AuthView: React.FC = () => {
               {authMode === 'STANDARD' ? 'Email Address' : 'Username'}
             </label>
             <div className="relative">
-              {authMode === 'STANDARD' ? (
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              ) : (
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              )}
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
               <input
                 type={authMode === 'STANDARD' ? 'email' : 'text'}
                 value={authMode === 'STANDARD' ? email : username}

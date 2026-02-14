@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -50,10 +50,13 @@ interface AppState {
   activeConfig: TableConfig | null;
   isActive: boolean;
   isInitialSyncDone: boolean;
+  isGuest: boolean;
   
   // Actions
   setUser: (user: User | null) => void;
+  setGuestUser: (username: string) => void;
   setProfile: (profile: UserProfile) => void;
+  logout: () => void;
   syncData: () => Promise<void>;
   updateMaxHold: (seconds: number) => Promise<void>;
   startSession: (config: TableConfig) => void;
@@ -62,23 +65,30 @@ interface AppState {
   addHistory: (record: SessionRecord) => Promise<void>;
   clearHistory: () => void;
   setSafetyAcknowledged: (acknowledged: boolean) => Promise<void>;
+  exportData: () => string;
+  importData: (jsonData: string) => Promise<{ success: boolean; message: string }>;
 }
+
+const initialState = {
+  user: null,
+  profile: null,
+  currentPhase: 'PREPARATION' as Phase,
+  timeLeft: 0,
+  currentRound: 1,
+  history: [],
+  activeConfig: null,
+  isActive: false,
+  isInitialSyncDone: false,
+  isGuest: false,
+};
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      user: null,
-      profile: null,
-      currentPhase: 'PREPARATION',
-      timeLeft: 0,
-      currentRound: 1,
-      history: [],
-      activeConfig: null,
-      isActive: false,
-      isInitialSyncDone: false,
+      ...initialState,
 
       setUser: (user) => {
-        set({ user });
+        set({ user, isGuest: false });
         if (user) {
           get().syncData();
         } else {
@@ -86,100 +96,120 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      setGuestUser: (username) => {
+        const guestProfile: UserProfile = {
+          id: 'guest',
+          username: username || 'Guest',
+          maxHoldBaseline: 0,
+          lastDiagnosticDate: 0,
+          preferences: { voiceCues: true, safetyAcknowledged: false }
+        };
+        set({ 
+          user: null, 
+          isGuest: true, 
+          profile: guestProfile,
+          isInitialSyncDone: true 
+        });
+      },
+
+      logout: async () => {
+        await supabase.auth.signOut();
+        set({ ...initialState });
+      },
+
       setProfile: (profile) => {
         set({ profile });
       },
 
       syncData: async () => {
-        const { user, history } = get();
-        if (!user) return;
+        const { user, history, isGuest } = get();
+        if (!user || isGuest) return;
 
-        // 1. Fetch Profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        try {
+          // 1. Fetch Profile
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
 
-        if (profileError && profileError.code === 'PGRST116') {
-          // Profile doesn't exist, create it
-          const newProfile = {
-            id: user.id,
-            username: user.email?.split('@')[0] || 'User',
-            max_hold_baseline: 0,
-            last_diagnostic_date: 0,
-            preferences: { voiceCues: true, safetyAcknowledged: false }
-          };
-          await supabase.from('profiles').insert(newProfile);
-          set({ 
-            profile: {
+          if (profileError && profileError.code === 'PGRST116') {
+            // Profile doesn't exist, create it
+            const newProfile = {
               id: user.id,
-              username: newProfile.username,
-              maxHoldBaseline: 0,
-              lastDiagnosticDate: 0,
-              preferences: newProfile.preferences
-            }
-          });
-        } else if (profileData) {
-          set({
-            profile: {
-              id: profileData.id,
-              username: profileData.username,
-              maxHoldBaseline: profileData.max_hold_baseline,
-              lastDiagnosticDate: profileData.last_diagnostic_date,
-              preferences: profileData.preferences
-            }
-          });
-        }
-
-        // 2. Sync History
-        // Fetch remote history
-        const { data: remoteHistory, error: historyError } = await supabase
-          .from('training_sessions')
-          .select('*')
-          .order('timestamp', { ascending: false });
-
-        if (!historyError && remoteHistory) {
-          const formattedRemote = remoteHistory.map(r => ({
-            id: r.id,
-            user_id: r.user_id,
-            configId: r.config_id,
-            tableName: r.table_name,
-            timestamp: r.timestamp,
-            completedRounds: r.completed_rounds,
-            totalDuration: r.total_duration,
-            completed: r.completed,
-            notes: r.notes
-          }));
-
-          // Merge local and remote (simplistic: remote wins for duplicates)
-          const localIds = new Set(history.map(h => h.id));
-          const newToRemote = history.filter(h => !remoteHistory.find(r => r.id === h.id));
-
-          // Upload new local records to remote
-          if (newToRemote.length > 0) {
-            const toUpload = newToRemote.map(h => ({
-              id: h.id,
-              user_id: user.id,
-              config_id: h.configId,
-              table_name: h.tableName,
-              timestamp: h.timestamp,
-              completed_rounds: h.completedRounds,
-              total_duration: h.totalDuration,
-              completed: h.completed,
-              notes: h.notes
-            }));
-            await supabase.from('training_sessions').insert(toUpload);
+              username: user.email?.split('@')[0] || 'User',
+              max_hold_baseline: 0,
+              last_diagnostic_date: 0,
+              preferences: { voiceCues: true, safetyAcknowledged: false }
+            };
+            await supabase.from('profiles').insert(newProfile);
+            set({ 
+              profile: {
+                id: user.id,
+                username: newProfile.username,
+                maxHoldBaseline: 0,
+                lastDiagnosticDate: 0,
+                preferences: newProfile.preferences
+              }
+            });
+          } else if (profileData) {
+            set({
+              profile: {
+                id: profileData.id,
+                username: profileData.username,
+                maxHoldBaseline: profileData.max_hold_baseline,
+                lastDiagnosticDate: profileData.last_diagnostic_date,
+                preferences: profileData.preferences
+              }
+            });
           }
 
-          // Update local state with merged history
-          const mergedHistory = [...formattedRemote];
-          set({ history: mergedHistory.slice(0, 100), isInitialSyncDone: true });
+          // 2. Sync History
+          const { data: remoteHistory, error: historyError } = await supabase
+            .from('training_sessions')
+            .select('*')
+            .order('timestamp', { ascending: false });
+
+          if (!historyError && remoteHistory) {
+            const formattedRemote = remoteHistory.map(r => ({
+              id: r.id,
+              user_id: r.user_id,
+              configId: r.config_id,
+              tableName: r.table_name,
+              timestamp: r.timestamp,
+              completedRounds: r.completed_rounds,
+              totalDuration: r.total_duration,
+              completed: r.completed,
+              notes: r.notes
+            }));
+
+            const newToRemote = history.filter(h => !remoteHistory.find(r => r.id === h.id));
+
+            if (newToRemote.length > 0) {
+              const toUpload = newToRemote.map(h => ({
+                id: h.id,
+                user_id: user.id,
+                config_id: h.configId,
+                table_name: h.tableName,
+                timestamp: h.timestamp,
+                completed_rounds: h.completedRounds,
+                total_duration: h.totalDuration,
+                completed: h.completed,
+                notes: h.notes
+              }));
+              await supabase.from('training_sessions').insert(toUpload);
+            }
+
+            const mergedHistory = [...formattedRemote];
+            set({ history: mergedHistory.slice(0, 100), isInitialSyncDone: true });
+          }
+        } catch (error) {
+          console.error('Sync failed:', error);
         }
       },
 
       updateMaxHold: async (seconds) => {
-        const { profile, user } = get();
+        const { profile, user, isGuest } = get();
         const now = Date.now();
         if (profile) {
           const updatedProfile = {
@@ -189,20 +219,24 @@ export const useAppStore = create<AppState>()(
           };
           set({ profile: updatedProfile });
 
-          if (user) {
-            await supabase
-              .from('profiles')
-              .update({ 
-                max_hold_baseline: seconds, 
-                last_diagnostic_date: now 
-              })
-              .eq('id', user.id);
+          if (user && !isGuest) {
+            try {
+              await supabase
+                .from('profiles')
+                .update({ 
+                  max_hold_baseline: seconds, 
+                  last_diagnostic_date: now 
+                })
+                .eq('id', user.id);
+            } catch (err) {
+              console.error('Failed to update max hold in cloud:', err);
+            }
           }
         }
       },
 
       setSafetyAcknowledged: async (acknowledged) => {
-        const { profile, user } = get();
+        const { profile, user, isGuest } = get();
         if (profile) {
           const updatedProfile = {
             ...profile,
@@ -213,11 +247,15 @@ export const useAppStore = create<AppState>()(
           };
           set({ profile: updatedProfile });
 
-          if (user) {
-            await supabase
-              .from('profiles')
-              .update({ preferences: updatedProfile.preferences })
-              .eq('id', user.id);
+          if (user && !isGuest) {
+            try {
+              await supabase
+                .from('profiles')
+                .update({ preferences: updatedProfile.preferences })
+                .eq('id', user.id);
+            } catch (err) {
+              console.error('Failed to update preferences in cloud:', err);
+            }
           }
         }
       },
@@ -282,27 +320,65 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ history: [record, ...state.history].slice(0, 100) }));
 
         if (user) {
-          await supabase.from('training_sessions').insert({
-            id: record.id,
-            user_id: user.id,
-            config_id: record.configId,
-            table_name: record.tableName,
-            timestamp: record.timestamp,
-            completed_rounds: record.completedRounds,
-            total_duration: record.totalDuration,
-            completed: record.completed,
-            notes: record.notes
-          });
+          try {
+            await supabase.from('training_sessions').insert({
+              id: record.id,
+              user_id: user.id,
+              config_id: record.configId,
+              table_name: record.tableName,
+              timestamp: record.timestamp,
+              completed_rounds: record.completedRounds,
+              total_duration: record.totalDuration,
+              completed: record.completed,
+              notes: record.notes
+            });
+          } catch (err) {
+            console.error('Failed to add history to cloud:', err);
+          }
         }
       },
 
       clearHistory: () => set({ history: [] }),
+
+      exportData: () => {
+        const { profile, history } = get();
+        return JSON.stringify({
+          version: 1,
+          exportDate: Date.now(),
+          profile,
+          history
+        }, null, 2);
+      },
+
+      importData: async (jsonData) => {
+        try {
+          const data = JSON.parse(jsonData);
+          if (!data.history || !Array.isArray(data.history)) {
+            throw new Error('Invalid backup file format');
+          }
+          
+          set({ 
+            history: data.history,
+            profile: data.profile || get().profile 
+          });
+          
+          if (get().user && !get().isGuest) {
+            await get().syncData();
+          }
+          
+          return { success: true, message: 'Data imported successfully!' };
+        } catch (err: any) {
+          return { success: false, message: err.message };
+        }
+      }
     }),
     {
       name: 'apnea-storage-v2',
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         history: state.history,
         profile: state.profile,
+        isGuest: state.isGuest
       }),
     }
   )
