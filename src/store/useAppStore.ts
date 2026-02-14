@@ -386,7 +386,8 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         history: state.history,
         profile: state.profile,
-        isGuest: state.isGuest
+        isGuest: state.isGuest,
+        user: state.user
       }),
     }
   )
