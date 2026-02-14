@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore, TableConfig } from '../store/useAppStore';
-import { Play, History, Clock, Settings, User, TrendingUp, ShieldAlert, CheckCircle2, LogOut, Cloud } from 'lucide-react';
+import { Play, History, Clock, Settings, User, TrendingUp, ShieldAlert, CheckCircle2, LogOut, Cloud, Edit2, Check, X } from 'lucide-react';
 import { audioEngine } from '../lib/audio';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabase';
@@ -8,11 +8,21 @@ import { supabase } from '../lib/supabase';
 export const Dashboard: React.FC = () => {
   const { 
     profile, startSession, history, clearHistory, 
-    setSafetyAcknowledged, user 
+    setSafetyAcknowledged, user, updateMaxHold 
   } = useAppStore();
   
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingTable, setPendingTable] = useState<TableConfig | null>(null);
+  
+  // Manual PB Edit State
+  const [isEditingPB, setIsEditingPB] = useState(false);
+  const [newPBValue, setNewPBValue] = useState('');
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+
+  const showToast = (message: string) => {
+    setToast({ message, visible: true });
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
+  };
 
   if (!profile) {
     return (
@@ -32,6 +42,15 @@ export const Dashboard: React.FC = () => {
       setShowSafetyModal(true);
     } else {
       startSession(table);
+    }
+  };
+
+  const handleSavePB = async () => {
+    const seconds = parseInt(newPBValue, 10);
+    if (!isNaN(seconds) && seconds >= 0) {
+      await updateMaxHold(seconds);
+      setIsEditingPB(false);
+      showToast('Personal Best updated successfully!');
     }
   };
 
@@ -78,6 +97,14 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8">
+      {/* Toast Notification */}
+      {toast.visible && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] bg-green-500 text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center gap-2 animate-bounce">
+          <Check size={20} />
+          {toast.message}
+        </div>
+      )}
+
       <header className="flex justify-between items-center py-4">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-black tracking-tight italic">APNEA<span className="text-blue-500">CORE</span></h1>
@@ -89,8 +116,40 @@ export const Dashboard: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
             <div className="text-sm font-bold text-white">{profile.username}</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-widest">
-              PB: {Math.floor(profile.maxHoldBaseline / 60)}:{(profile.maxHoldBaseline % 60).toString().padStart(2, '0')}
+            <div className="flex items-center justify-end gap-2">
+              {isEditingPB ? (
+                <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 border border-slate-700">
+                  <input 
+                    type="number" 
+                    value={newPBValue}
+                    onChange={(e) => setNewPBValue(e.target.value)}
+                    className="w-16 bg-transparent text-white text-[10px] text-center outline-none"
+                    placeholder="Secs"
+                    autoFocus
+                  />
+                  <button onClick={handleSavePB} className="text-green-500 hover:text-green-400">
+                    <Check size={12} />
+                  </button>
+                  <button onClick={() => setIsEditingPB(false)} className="text-red-500 hover:text-red-400">
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest">
+                    PB: {Math.floor(profile.maxHoldBaseline / 60)}:{(profile.maxHoldBaseline % 60).toString().padStart(2, '0')}
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setNewPBValue(profile.maxHoldBaseline.toString());
+                      setIsEditingPB(true);
+                    }}
+                    className="text-gray-600 hover:text-blue-500 transition-colors"
+                  >
+                    <Edit2 size={10} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           <button 
