@@ -2,10 +2,11 @@ import React, { useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { audioEngine } from '../lib/audio';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { X, Play, Pause, Square } from 'lucide-react';
+import { X, Play, Pause, Square, Info } from 'lucide-react';
 
 export const TimerView: React.FC = () => {
   const { 
+    profile,
     currentPhase, 
     timeLeft, 
     currentRound, 
@@ -33,20 +34,20 @@ export const TimerView: React.FC = () => {
     if (!isActive) return;
 
     // Phase start beeps
-    if (timeLeft === (activeConfig?.initialHoldTime || 0) && currentPhase === 'HOLD') {
+    if (currentPhase === 'HOLD' && timeLeft === (activeConfig?.initialHoldTime || 0)) {
         audioEngine.beepHigh();
     }
-    if (timeLeft === (activeConfig?.initialRestTime || 0) && currentPhase === 'BREATHE') {
+    if (currentPhase === 'BREATHE' && timeLeft === (activeConfig?.initialRestTime || 0)) {
         audioEngine.beepLow();
     }
 
-    // Countdown beeps
-    if (timeLeft <= 3 && timeLeft > 0) {
+    // Countdown beeps (last 3s)
+    if (currentPhase !== 'DIAGNOSTIC' && timeLeft <= 3 && timeLeft > 0) {
       audioEngine.beepCountdown();
     }
     
     // 10s warning
-    if (timeLeft === 10) {
+    if (currentPhase !== 'DIAGNOSTIC' && timeLeft === 10) {
       audioEngine.beepWarning();
     }
   }, [timeLeft, currentPhase, isActive, activeConfig]);
@@ -58,11 +59,12 @@ export const TimerView: React.FC = () => {
       if (currentPhase === 'FINISHED' && activeConfig && !hasSavedHistory.current) {
           addHistory({
               id: crypto.randomUUID(),
+              username: profile?.username || 'unknown',
               configId: activeConfig.id,
               tableName: activeConfig.name,
               timestamp: Date.now(),
               completedRounds: currentRound,
-              totalDuration: 0, // Simplified for MVP
+              totalDuration: timeLeft, // For diagnostic, timeLeft is the result
               completed: true
           });
           hasSavedHistory.current = true;
@@ -71,15 +73,16 @@ export const TimerView: React.FC = () => {
       if (isActive && currentPhase !== 'FINISHED') {
           hasSavedHistory.current = false;
       }
-  }, [currentPhase, activeConfig, currentRound, addHistory, isActive]);
+  }, [currentPhase, activeConfig, currentRound, addHistory, isActive, profile, timeLeft]);
 
   if (!activeConfig) return null;
 
   const getPhaseColor = () => {
     switch (currentPhase) {
-      case 'HOLD': return 'text-accent';
-      case 'BREATHE': return 'text-primary';
+      case 'HOLD': return 'text-blue-500';
+      case 'BREATHE': return 'text-green-500';
       case 'PREPARATION': return 'text-yellow-500';
+      case 'DIAGNOSTIC': return 'text-blue-400';
       default: return 'text-white';
     }
   };
@@ -91,42 +94,57 @@ export const TimerView: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-6">
+    <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-6 select-none">
       <div className="absolute top-6 right-6">
-        <button onClick={stopSession} className="p-2 text-gray-400 hover:text-white">
+        <button onClick={stopSession} className="p-2 text-gray-400 hover:text-white transition-colors">
           <X size={32} />
         </button>
       </div>
 
-      <div className="text-center mb-8">
-        <h2 className="text-xl text-gray-400 uppercase tracking-widest">{activeConfig.name}</h2>
-        <p className="text-lg text-gray-500">Round {currentRound} / {activeConfig.rounds}</p>
+      <div className="text-center mb-8 space-y-1">
+        <h2 className="text-sm text-gray-500 uppercase tracking-[0.3em] font-bold">{activeConfig.name}</h2>
+        {currentPhase !== 'DIAGNOSTIC' && (
+          <p className="text-xl font-bold text-gray-400">Round {currentRound} / {activeConfig.rounds}</p>
+        )}
       </div>
 
       <div className="flex flex-col items-center justify-center flex-1">
-        <h1 className={`text-4xl sm:text-5xl font-bold mb-4 tracking-tighter transition-colors duration-500 ${getPhaseColor()}`}>
+        <div className={`text-2xl sm:text-3xl font-black mb-4 tracking-[0.2em] transition-colors duration-500 uppercase ${getPhaseColor()}`}>
           {currentPhase}
-        </h1>
-        <div className={`text-7xl sm:text-8xl md:text-9xl font-black tabular-nums ${getPhaseColor()}`}>
+        </div>
+        <div className={`text-8xl sm:text-9xl md:text-[12rem] font-black tabular-nums tracking-tighter transition-all duration-300 ${getPhaseColor()}`}>
           {formatTime(timeLeft)}
         </div>
+        
+        {currentPhase === 'DIAGNOSTIC' && (
+          <div className="mt-8 flex items-center gap-2 text-gray-500 max-w-xs text-center">
+            <Info size={16} />
+            <p className="text-xs">Stop the timer when you can no longer hold your breath.</p>
+          </div>
+        )}
       </div>
 
-      <div className="w-full max-w-md bg-gray-900 h-2 rounded-full overflow-hidden mb-12">
-        <div 
-          className="h-full bg-primary transition-all duration-1000"
-          style={{ width: `${(currentRound / activeConfig.rounds) * 100}%` }}
-        />
-      </div>
+      {currentPhase !== 'DIAGNOSTIC' && (
+        <div className="w-full max-w-md bg-gray-900 h-1.5 rounded-full overflow-hidden mb-12">
+          <div 
+            className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
+            style={{ width: `${(currentRound / activeConfig.rounds) * 100}%` }}
+          />
+        </div>
+      )}
 
       <div className="flex gap-8 mb-12">
         <button 
           onClick={stopSession}
-          className="bg-gray-800 p-6 rounded-full text-white hover:bg-gray-700"
+          className="bg-gray-900 border border-gray-800 p-8 rounded-full text-white hover:bg-gray-800 hover:border-red-500/50 transition-all group"
         >
-          <Square size={32} fill="currentColor" />
+          <Square size={32} fill="currentColor" className="group-hover:text-red-500 transition-colors" />
         </button>
       </div>
+      
+      <footer className="mb-4">
+        <p className="text-[10px] text-gray-800 uppercase tracking-widest font-black">Stay Focused. Keep Calm.</p>
+      </footer>
     </div>
   );
 };
