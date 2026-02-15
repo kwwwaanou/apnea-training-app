@@ -24,10 +24,8 @@ export const AuthView: React.FC = () => {
 
     try {
       if (authMode === 'LOCAL_ONLY') {
-        // if (!username.trim()) throw new Error('Please enter a username');
-        const finalUsername = username.trim() || 'Guest User';
+        const finalUsername = 'Guest';
         
-        // Wrap store action in try-catch to prevent crash if store is not yet initialized
         try {
           if (typeof setGuestUser === 'function') {
             setGuestUser(finalUsername);
@@ -132,26 +130,28 @@ export const AuthView: React.FC = () => {
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">
-              {authMode === 'STANDARD' ? 'Email Address' : 'Username'} {authMode === 'LOCAL_ONLY' && <span className="text-slate-500 font-normal">(Optional)</span>}
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-              <input
-                type={authMode === 'STANDARD' ? 'email' : 'text'}
-                value={authMode === 'STANDARD' ? email : username}
-                onChange={(e) => authMode === 'STANDARD' ? setEmail(e.target.value) : setUsername(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder={authMode === 'STANDARD' ? 'you@example.com' : (authMode === 'LOCAL_ONLY' ? 'Guest User (Optional)' : 'Choose a username')}
-                required={authMode !== 'LOCAL_ONLY'}
-                autoFocus
-              />
+          {authMode !== 'LOCAL_ONLY' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-300">
+                {authMode === 'STANDARD' ? 'Email Address' : 'Username'}
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  type={authMode === 'STANDARD' ? 'email' : 'text'}
+                  value={authMode === 'STANDARD' ? email : username}
+                  onChange={(e) => authMode === 'STANDARD' ? setEmail(e.target.value) : setUsername(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder={authMode === 'STANDARD' ? 'you@example.com' : 'Choose a username'}
+                  required
+                  autoFocus
+                />
+              </div>
+              {authMode === 'QUICK_SYNC' && (
+                <p className="text-[10px] text-slate-500 ml-1">Will be stored as {username.trim().toLowerCase() || 'user'}@example.com</p>
+              )}
             </div>
-            {authMode === 'QUICK_SYNC' && (
-              <p className="text-[10px] text-slate-500 ml-1">Will be stored as {username.trim().toLowerCase() || 'user'}@example.com</p>
-            )}
-          </div>
+          )}
 
           {authMode !== 'LOCAL_ONLY' && (
             <div className="space-y-2">

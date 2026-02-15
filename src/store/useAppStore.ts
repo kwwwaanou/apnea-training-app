@@ -141,11 +141,14 @@ export const useAppStore = create<AppState>()(
           // For Cloud users, we clear everything to protect privacy
           set({ ...initialState, isHydrated: true });
         } else {
-          // For Local (Guest) users, we keep the data even after "disconnect"
+          // For Local (Guest) users, we keep the data but return to login
           set({ 
             user: null,
-            isGuest: false, // Return to landing but keep the rest
-            isInitialSyncDone: false
+            isGuest: false, // Return to landing
+            isInitialSyncDone: false,
+            activeConfig: null,
+            isActive: false,
+            isPaused: false
           });
         }
       },
