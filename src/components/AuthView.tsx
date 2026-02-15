@@ -91,7 +91,7 @@ export const AuthView: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] p-4">
       <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-6 relative">
           <div className="bg-blue-500/20 p-4 rounded-full">
             {authMode === 'QUICK_SYNC' ? (
               <Cloud className="w-12 h-12 text-blue-400" />
@@ -100,6 +100,11 @@ export const AuthView: React.FC = () => {
             ) : (
               <LogIn className="w-12 h-12 text-purple-400" />
             )}
+          </div>
+          <div className="absolute -top-2 -right-2">
+            <span className="text-[10px] text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-700 font-mono">
+              v1.2.2
+            </span>
           </div>
         </div>
 
