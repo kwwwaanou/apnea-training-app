@@ -104,7 +104,7 @@ export const AuthView: React.FC = () => {
         </div>
 
         <h2 className="text-2xl font-bold text-center text-white mb-6">
-          {authMode === 'QUICK_SYNC' ? 'Cloud Sync (Easy)' : 
+          {authMode === 'QUICK_SYNC' ? 'Cloud Sync' : 
            authMode === 'LOCAL_ONLY' ? 'Local Only' : 'Standard Account'}
         </h2>
 
@@ -144,6 +144,7 @@ export const AuthView: React.FC = () => {
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder={authMode === 'STANDARD' ? 'you@example.com' : 'Choose a username'}
                 required
+                autoFocus
               />
             </div>
             {authMode === 'QUICK_SYNC' && (
@@ -205,7 +206,7 @@ export const AuthView: React.FC = () => {
         )}
         
         <div className="mt-8 pt-6 border-t border-slate-700/50">
-          <p className="text-xs text-slate-500 text-center leading-relaxed">
+          <p className="text-xs text-slate-400 text-center leading-relaxed">
             {authMode === 'QUICK_SYNC' && "Quick Sync uses a pseudo-email to backup your data to the cloud without needing a real email address."}
             {authMode === 'LOCAL_ONLY' && "Data is saved only on this device. If you clear your browser cache or change devices, your history will be lost."}
             {authMode === 'STANDARD' && "Use your real email for maximum security and account recovery."}
