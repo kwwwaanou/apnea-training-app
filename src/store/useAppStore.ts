@@ -189,6 +189,7 @@ export const useAppStore = create<AppState>()(
               completedRounds: r.completed_rounds,
               totalDuration: r.total_duration,
               completed: r.completed,
+              difficultyScore: r.difficulty_score,
               notes: r.notes
             }));
 
@@ -204,6 +205,7 @@ export const useAppStore = create<AppState>()(
                 completed_rounds: h.completedRounds,
                 total_duration: h.totalDuration,
                 completed: h.completed,
+                difficulty_score: h.difficultyScore,
                 notes: h.notes
               }));
               await supabase.from('training_sessions').insert(toUpload);
@@ -299,26 +301,18 @@ export const useAppStore = create<AppState>()(
 
       stopSession: () => {
         if (!get().isHydrated) return;
-        const { currentPhase, timeLeft, activeConfig, currentRound, profile, addHistory } = get();
-        if (currentPhase === 'DIAGNOSTIC') {
-          get().updateMaxHold(timeLeft);
-        }
+        const { currentPhase, timeLeft, activeConfig, isActive } = get();
         
-        // Log history before stopping if it's a regular training table
-        if (activeConfig && activeConfig.type !== 'Diagnostic' && currentPhase !== 'FINISHED') {
-          addHistory({
-              id: crypto.randomUUID(),
-              username: profile?.username || 'unknown',
-              configId: activeConfig.id,
-              tableName: activeConfig.name,
-              timestamp: Date.now(),
-              completedRounds: currentPhase === 'BREATHE' ? currentRound : currentRound - 1,
-              totalDuration: 0, // Not used for regular tables
-              completed: false // Interrupted
-          });
-        }
+        if (!isActive) return;
 
-        set({ isActive: false, currentPhase: 'FINISHED', isPaused: false });
+        if (currentPhase === 'DIAGNOSTIC' || currentPhase === 'FINISHED') {
+          if (currentPhase === 'DIAGNOSTIC') {
+            get().updateMaxHold(timeLeft);
+          }
+          set({ isActive: false, currentPhase: 'FINISHED', isPaused: false });
+        } else {
+          set({ currentPhase: 'FINISHED', isPaused: true });
+        }
       },
 
       tick: () => {
@@ -357,18 +351,8 @@ export const useAppStore = create<AppState>()(
                 timeLeft: nextHoldTime
               });
             } else {
-              // End of session - log success
-              addHistory({
-                  id: crypto.randomUUID(),
-                  username: profile?.username || 'unknown',
-                  configId: activeConfig.id,
-                  tableName: activeConfig.name,
-                  timestamp: Date.now(),
-                  completedRounds: currentRound,
-                  totalDuration: 0,
-                  completed: true
-              });
-              set({ currentPhase: 'FINISHED', isActive: false });
+              // End of session - show summary screen
+              set({ currentPhase: 'FINISHED', isPaused: true });
             }
           }
         }
@@ -411,9 +395,10 @@ export const useAppStore = create<AppState>()(
               config_id: record.configId,
               table_name: record.tableName,
               timestamp: record.timestamp,
-              completed_rounds: record.completed_rounds,
+              completed_rounds: record.completedRounds,
               total_duration: record.totalDuration,
               completed: record.completed,
+              difficulty_score: record.difficultyScore,
               notes: record.notes
             });
           } catch (err) {

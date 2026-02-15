@@ -33,5 +33,6 @@ export interface SessionRecord {
   completedRounds: number;
   totalDuration: number;
   completed: boolean;
+  difficultyScore?: number;
   notes?: string;
 }

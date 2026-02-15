@@ -371,16 +371,33 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          {history.slice(0, 5).map((record) => (
+          {history.slice(0, 8).map((record) => (
             <div key={record.id} className="bg-gray-900 border border-gray-800 p-4 rounded-xl flex justify-between items-center hover:bg-slate-800/50 transition-colors">
-              <div>
-                <h4 className="font-semibold text-sm text-white">{record.tableName}</h4>
-                <p className="text-[10px] text-gray-500 uppercase tracking-tighter">
-                  {new Date(record.timestamp).toLocaleDateString()}
-                </p>
+              <div className="flex items-center gap-4">
+                <div className={`p-2 rounded-lg ${record.completed ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                   {record.completed ? <CheckCircle2 size={16} /> : <Clock size={16} />}
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm text-white">{record.tableName}</h4>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-tighter">
+                      {new Date(record.timestamp).toLocaleDateString()}
+                    </p>
+                    {record.difficultyScore && (
+                      <span className="text-[10px] text-slate-600">•</span>
+                    )}
+                    {record.difficultyScore && (
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <div key={s} className={`w-1 h-2 rounded-full ${s <= record.difficultyScore ? 'bg-blue-500' : 'bg-slate-800'}`} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="text-right">
-                <div className="text-xs font-mono text-blue-500">
+                <div className="text-xs font-mono font-bold text-blue-500">
                   {record.tableName === 'Max Breath Hold' 
                     ? `${Math.floor(record.totalDuration/60)}:${(record.totalDuration%60).toString().padStart(2, '0')}`
                     : `${record.completedRounds} Rounds`}

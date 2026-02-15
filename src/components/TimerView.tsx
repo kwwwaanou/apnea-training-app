@@ -58,8 +58,26 @@ export const TimerView: React.FC = () => {
     }
   }, [timeLeft, currentPhase, isActive, activeConfig]);
 
-  // History logging for DIAGNOSTIC only (Training is handled in store)
+  const [difficultyScore, setDifficultyScore] = React.useState(3);
   const hasSavedHistory = React.useRef(false);
+
+  const handleFinish = () => {
+    if (!activeConfig) return;
+    
+    addHistory({
+      id: crypto.randomUUID(),
+      username: profile?.username || 'unknown',
+      configId: activeConfig.id,
+      tableName: activeConfig.name,
+      timestamp: Date.now(),
+      completedRounds: currentPhase === 'BREATHE' ? currentRound : (currentRound > 0 ? currentRound : 1),
+      totalDuration: 0,
+      completed: currentRound >= activeConfig.rounds,
+      difficultyScore: difficultyScore
+    });
+    
+    stopSession();
+  };
 
   useEffect(() => {
       if (currentPhase === 'FINISHED' && activeConfig?.type === 'Diagnostic' && !hasSavedHistory.current) {
@@ -82,6 +100,62 @@ export const TimerView: React.FC = () => {
   }, [currentPhase, activeConfig, addHistory, isActive, profile, timeLeft]);
 
   if (!activeConfig) return null;
+
+  if (currentPhase === 'FINISHED' && activeConfig.type !== 'Diagnostic') {
+    return (
+      <div className="fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center p-6 select-none animate-in fade-in duration-500">
+        <div className="w-full max-w-sm space-y-12 flex flex-col items-center">
+          <div className="text-center space-y-4">
+             <div className="w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center mb-6 mx-auto border border-blue-500/30">
+               <Check size={40} className="text-blue-500" />
+             </div>
+             <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic">Workout Complete</h2>
+             <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{activeConfig.name} • {currentRound} Rounds</p>
+          </div>
+
+          <div className="w-full bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 space-y-8 backdrop-blur-sm">
+            <div className="text-center space-y-1">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Intensity Score</p>
+              <p className="text-sm text-slate-400 font-medium">How difficult was this session?</p>
+            </div>
+            
+            <div className="flex justify-between items-center gap-3">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setDifficultyScore(s)}
+                  className={`flex-1 aspect-square rounded-2xl flex items-center justify-center text-2xl transition-all duration-300 ${
+                    difficultyScore === s 
+                      ? 'bg-white text-black scale-110 shadow-[0_0_20px_rgba(255,255,255,0.3)]' 
+                      : 'bg-slate-800/50 text-slate-600 hover:bg-slate-800 hover:text-slate-400 border border-slate-700/50'
+                  }`}
+                >
+                  {s === 1 ? '😊' : s === 2 ? '😐' : s === 3 ? '🤨' : s === 4 ? '😫' : '💀'}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-center h-4">
+               <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest">
+                  {difficultyScore === 1 && "Easy - Recovery was plenty"}
+                  {difficultyScore === 2 && "Moderate - Felt some urge"}
+                  {difficultyScore === 3 && "Challenging - Focused effort"}
+                  {difficultyScore === 4 && "Hard - Heavy contractions"}
+                  {difficultyScore === 5 && "Extreme - Maximum effort"}
+               </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleFinish}
+            className="w-full bg-white text-black font-black py-5 rounded-2xl hover:bg-blue-50 transition-all uppercase tracking-widest text-sm shadow-xl"
+          >
+            Save to History
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const getPhaseColor = () => {
     switch (currentPhase) {
