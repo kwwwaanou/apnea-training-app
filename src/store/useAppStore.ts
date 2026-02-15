@@ -93,11 +93,15 @@ export const useAppStore = create<AppState>()(
       setHydrated: () => set({ isHydrated: true }),
 
       setUser: (user) => {
-        set({ user, isGuest: false });
-        if (user) {
-          get().syncData();
-        } else {
-          set({ profile: null, isInitialSyncDone: false });
+        const currentUser = get().user;
+        // Only trigger update if user actually changed to avoid logout on refresh
+        if (user?.id !== currentUser?.id) {
+          set({ user, isGuest: false });
+          if (user) {
+            get().syncData();
+          } else {
+            set({ profile: null, isInitialSyncDone: false });
+          }
         }
       },
 
