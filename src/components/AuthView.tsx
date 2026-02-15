@@ -210,6 +210,12 @@ export const AuthView: React.FC = () => {
             {authMode === 'LOCAL_ONLY' && "Data is saved only on this device. If you clear your browser cache or change devices, your history will be lost."}
             {authMode === 'STANDARD' && "Use your real email for maximum security and account recovery."}
           </p>
+          {/* Version tag for mobile users */}
+          <div className="pt-8 text-center">
+            <span className="text-[10px] text-gray-800 uppercase tracking-widest font-medium">
+              v1.2.2-stable
+            </span>
+          </div>
         </div>
       </div>
     </div>

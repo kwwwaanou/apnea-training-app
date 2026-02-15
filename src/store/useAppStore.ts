@@ -102,9 +102,11 @@ export const useAppStore = create<AppState>()(
       },
 
       setGuestUser: (username) => {
-        const existing = get().profile;
-        if (existing && existing.username === username) {
-          set({ isGuest: true, user: null });
+        const { profile } = get();
+        
+        // If we already have a profile with this name, just switch to guest mode
+        if (profile && profile.username === username) {
+          set({ isGuest: true, user: null, isInitialSyncDone: true });
           return;
         }
 
@@ -119,13 +121,16 @@ export const useAppStore = create<AppState>()(
           user: null, 
           isGuest: true, 
           profile: guestProfile,
+          history: [], // Clear history for new guest
           isInitialSyncDone: true 
         });
       },
 
       logout: async () => {
-        await supabase.auth.signOut();
-        set({ ...initialState });
+        if (get().user) {
+          await supabase.auth.signOut();
+        }
+        set({ ...initialState, isHydrated: true });
       },
 
       setProfile: (profile) => {
@@ -384,10 +389,16 @@ export const useAppStore = create<AppState>()(
       }
     }),
     {
-      name: 'apnea-storage-v5',
+      name: 'apnea-storage-v6', // Bump to v6 for clean state
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: (state) => {
-        return () => state.setHydrated();
+        return (rehydratedState, error) => {
+          if (error) {
+            console.error('Hydration error:', error);
+          } else if (rehydratedState) {
+            rehydratedState.setHydrated();
+          }
+        };
       },
       partialize: (state) => ({
         history: state.history,

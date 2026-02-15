@@ -294,7 +294,28 @@ export const Dashboard: React.FC = () => {
             <div className="bg-blue-500/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
               <Edit2 size={24} className="text-blue-500" />
             </div>
-            <span className="font-bold text-white">Set Record</span>
+            {isEditingPB ? (
+              <div className="flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 bg-slate-800 rounded-lg p-2 border border-slate-700">
+                  <input 
+                    type="number" 
+                    value={newPBValue}
+                    onChange={(e) => setNewPBValue(e.target.value)}
+                    className="w-20 bg-transparent text-white text-sm text-center outline-none"
+                    placeholder="Secs"
+                    autoFocus
+                  />
+                  <button onClick={handleSavePB} className="bg-green-600 p-1 rounded text-white hover:bg-green-500">
+                    <Check size={16} />
+                  </button>
+                  <button onClick={() => setIsEditingPB(false)} className="bg-red-600 p-1 rounded text-white hover:bg-red-500">
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <span className="font-bold text-white">Set Record</span>
+            )}
           </button>
           
           <button 

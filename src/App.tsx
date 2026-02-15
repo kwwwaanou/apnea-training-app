@@ -46,7 +46,7 @@ function App() {
         {isActive ? <TimerView /> : <Dashboard />}
       </div>
       <footer className="py-4 text-center text-[10px] text-gray-700 uppercase tracking-widest border-t border-gray-900/50">
-        App Version: v1.2.0-stable
+        App Version: v1.2.2-stable
       </footer>
     </div>
   );
