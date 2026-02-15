@@ -8,8 +8,11 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export const Dashboard: React.FC = () => {
   const { 
     profile, startSession, history, clearHistory, 
-    setSafetyAcknowledged, user, updateMaxHold, logout 
+    setSafetyAcknowledged, user, updateMaxHold, logout,
+    getEstimatedPB 
   } = useAppStore();
+  
+  const estimatedPB = getEstimatedPB();
   
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingTable, setPendingTable] = useState<TableConfig | null>(null);
@@ -174,19 +177,31 @@ export const Dashboard: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest">
-                    PB: {Math.floor(profile.maxHoldBaseline / 60)}:{(profile.maxHoldBaseline % 60).toString().padStart(2, '0')}
+                <div className="flex flex-col items-end">
+                  {estimatedPB > profile.maxHoldBaseline && (
+                    <div className="flex items-center gap-1 mb-0.5 animate-pulse">
+                      <div className="bg-green-500/20 border border-green-500/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <TrendingUp size={10} className="text-green-500" />
+                        <span className="text-[9px] text-green-400 font-black uppercase tracking-[0.1em]">
+                          Potential: {Math.floor(estimatedPB / 60)}:{(estimatedPB % 60).toString().padStart(2, '0')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-widest">
+                      PB: {Math.floor(profile.maxHoldBaseline / 60)}:{(profile.maxHoldBaseline % 60).toString().padStart(2, '0')}
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setNewPBValue(profile.maxHoldBaseline.toString());
+                        setIsEditingPB(true);
+                      }}
+                      className="text-gray-600 hover:text-blue-500 transition-colors"
+                    >
+                      <Edit2 size={10} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => {
-                      setNewPBValue(profile.maxHoldBaseline.toString());
-                      setIsEditingPB(true);
-                    }}
-                    className="text-gray-600 hover:text-blue-500 transition-colors"
-                  >
-                    <Edit2 size={10} />
-                  </button>
                 </div>
               )}
             </div>

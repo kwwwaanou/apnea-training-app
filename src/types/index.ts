@@ -34,5 +34,6 @@ export interface SessionRecord {
   totalDuration: number;
   completed: boolean;
   difficultyScore?: number;
+  dynamicScaling?: boolean;
   notes?: string;
 }

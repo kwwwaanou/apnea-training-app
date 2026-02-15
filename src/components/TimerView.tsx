@@ -73,7 +73,8 @@ export const TimerView: React.FC = () => {
       completedRounds: currentPhase === 'BREATHE' ? currentRound : (currentRound > 0 ? currentRound : 1),
       totalDuration: 0,
       completed: currentRound >= activeConfig.rounds,
-      difficultyScore: difficultyScore
+      difficultyScore: difficultyScore,
+      dynamicScaling: activeConfig.dynamicScaling
     });
     
     stopSession();

@@ -39,6 +39,7 @@ interface AppState {
   importData: (jsonData: string) => Promise<{ success: boolean; message: string }>;
   setHydrated: () => void;
   validateRound: (success: boolean) => void;
+  getEstimatedPB: () => number;
 }
 
 const initialState = {
@@ -442,6 +443,37 @@ export const useAppStore = create<AppState>()(
         } catch (err: any) {
           return { success: false, message: err.message };
         }
+      },
+
+      getEstimatedPB: () => {
+        const { profile, history } = get();
+        if (!profile) return 0;
+        
+        let estimated = profile.maxHoldBaseline;
+        
+        // Base bonus from history
+        history.forEach(session => {
+          if (session.completed) {
+            // +2s for success with dynamic scaling
+            if (session.dynamicScaling) {
+              estimated += 2;
+            }
+            // +1s if RPE <= 2
+            if (session.difficultyScore !== undefined && session.difficultyScore <= 2) {
+              estimated += 1;
+            }
+          }
+        });
+
+        // Momentum bonus: +5s if last 3 sessions are successes
+        if (history.length >= 3) {
+          const lastThree = history.slice(0, 3);
+          if (lastThree.every(s => s.completed)) {
+            estimated += 5;
+          }
+        }
+
+        return estimated;
       }
     }),
     {
