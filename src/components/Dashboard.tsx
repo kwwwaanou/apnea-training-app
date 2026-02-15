@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 export const Dashboard: React.FC = () => {
   const { 
     profile, startSession, history, clearHistory, 
-    setSafetyAcknowledged, user, updateMaxHold 
+    setSafetyAcknowledged, user, updateMaxHold, logout 
   } = useAppStore();
   
   const [showSafetyModal, setShowSafetyModal] = useState(false);
@@ -189,7 +189,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <button 
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => logout()}
             className="bg-gray-900 p-3 rounded-full border border-gray-800 text-gray-400 hover:text-white transition-colors"
             title="Sign Out"
           >
