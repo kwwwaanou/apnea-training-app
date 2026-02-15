@@ -131,10 +131,19 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: async () => {
-        if (get().user) {
+        const { user } = get();
+        if (user) {
           await supabase.auth.signOut();
+          // For Cloud users, we clear everything to protect privacy
+          set({ ...initialState, isHydrated: true });
+        } else {
+          // For Local (Guest) users, we keep the data even after "disconnect"
+          set({ 
+            user: null,
+            isGuest: false, // Return to landing but keep the rest
+            isInitialSyncDone: false
+          });
         }
-        set({ ...initialState, isHydrated: true });
       },
 
       setProfile: (profile) => {
