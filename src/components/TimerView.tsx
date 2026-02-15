@@ -14,20 +14,23 @@ export const TimerView: React.FC = () => {
     tick, 
     stopSession, 
     isActive,
+    isPaused,
+    resumeSession,
+    pauseSession,
     addHistory 
   } = useAppStore();
 
-  useWakeLock(isActive);
+  useWakeLock(isActive && !isPaused);
 
   useEffect(() => {
     let interval: number;
-    if (isActive && currentPhase !== 'FINISHED') {
+    if (isActive && !isPaused && currentPhase !== 'FINISHED') {
       interval = setInterval(() => {
         tick();
       }, 1000) as unknown as number;
     }
     return () => clearInterval(interval);
-  }, [isActive, currentPhase, tick]);
+  }, [isActive, isPaused, currentPhase, tick]);
 
   // Audio Cues
   useEffect(() => {
@@ -134,12 +137,21 @@ export const TimerView: React.FC = () => {
       )}
 
       <div className="flex gap-8 mb-12">
-        <button 
-          onClick={stopSession}
-          className="bg-gray-900 border border-gray-800 p-8 rounded-full text-white hover:bg-gray-800 hover:border-red-500/50 transition-all group"
-        >
-          <Square size={32} fill="currentColor" className="group-hover:text-red-500 transition-colors" />
-        </button>
+        {currentPhase === 'DIAGNOSTIC' && isPaused ? (
+          <button 
+            onClick={resumeSession}
+            className="bg-blue-600 border border-blue-500 p-8 rounded-full text-white hover:bg-blue-500 transition-all flex items-center justify-center"
+          >
+            <Play size={32} fill="currentColor" />
+          </button>
+        ) : (
+          <button 
+            onClick={stopSession}
+            className="bg-gray-900 border border-gray-800 p-8 rounded-full text-white hover:bg-gray-800 hover:border-red-500/50 transition-all group"
+          >
+            <Square size={32} fill="currentColor" className="group-hover:text-red-500 transition-colors" />
+          </button>
+        )}
       </div>
       
       <footer className="mb-4">

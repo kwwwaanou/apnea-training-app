@@ -52,6 +52,7 @@ interface AppState {
   isInitialSyncDone: boolean;
   isGuest: boolean;
   isHydrated: boolean; // Add hydration flag
+  isPaused: boolean;
   
   // Actions
   setUser: (user: User | null) => void;
@@ -61,6 +62,8 @@ interface AppState {
   syncData: () => Promise<void>;
   updateMaxHold: (seconds: number) => Promise<void>;
   startSession: (config: TableConfig) => void;
+  pauseSession: () => void;
+  resumeSession: () => void;
   stopSession: () => void;
   tick: () => void;
   addHistory: (record: SessionRecord) => Promise<void>;
@@ -80,6 +83,7 @@ const initialState = {
   history: [],
   activeConfig: null,
   isActive: false,
+  isPaused: false,
   isInitialSyncDone: false,
   isGuest: false,
   isHydrated: false,
@@ -296,20 +300,24 @@ export const useAppStore = create<AppState>()(
           timeLeft: config.type === 'Diagnostic' ? 0 : 15,
           currentRound: 1,
           isActive: true,
+          isPaused: config.type === 'Diagnostic', // Pause by default for Diagnostic
         });
       },
+
+      pauseSession: () => set({ isPaused: true }),
+      resumeSession: () => set({ isPaused: false }),
 
       stopSession: () => {
         const { currentPhase, timeLeft } = get();
         if (currentPhase === 'DIAGNOSTIC') {
           get().updateMaxHold(timeLeft);
         }
-        set({ isActive: false, currentPhase: 'FINISHED' });
+        set({ isActive: false, currentPhase: 'FINISHED', isPaused: false });
       },
 
       tick: () => {
-        const { timeLeft, currentPhase, currentRound, activeConfig, isActive } = get();
-        if (!isActive || !activeConfig) return;
+        const { timeLeft, currentPhase, currentRound, activeConfig, isActive, isPaused } = get();
+        if (!isActive || !activeConfig || isPaused) return;
 
         if (currentPhase === 'DIAGNOSTIC') {
           set({ timeLeft: timeLeft + 1 });
