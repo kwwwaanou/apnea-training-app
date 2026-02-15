@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { audioEngine } from '../lib/audio';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { X, Play, Pause, Square, Info } from 'lucide-react';
+import { X, Play, Pause, Square, Info, Check } from 'lucide-react';
 
 export const TimerView: React.FC = () => {
   const { 
@@ -85,10 +85,10 @@ export const TimerView: React.FC = () => {
 
   const getPhaseColor = () => {
     switch (currentPhase) {
-      case 'HOLD': return 'text-blue-500';
-      case 'BREATHE': return 'text-green-500';
+      case 'HOLD': return 'text-red-500';
+      case 'BREATHE': return 'text-blue-500';
       case 'PREPARATION': return 'text-yellow-500';
-      case 'DIAGNOSTIC': return 'text-blue-400';
+      case 'DIAGNOSTIC': return 'text-orange-400';
       default: return 'text-white';
     }
   };
@@ -124,107 +124,120 @@ export const TimerView: React.FC = () => {
       });
     }
     return sequence;
-  }, [activeConfig, isScalingEnabled]);
+  }, [activeConfig, isScalingEnabled, currentRound]);
 
   const currentStepIndex = currentPhase === 'PREPARATION' ? -1 : 
     currentPhase === 'HOLD' ? (currentRound - 1) * 2 : 
     currentPhase === 'BREATHE' ? (currentRound - 1) * 2 + 1 : -1;
 
   return (
-    <div className="fixed inset-0 bg-[#000000] z-50 flex flex-col items-center p-6 select-none overflow-hidden">
+    <div className="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center p-6 select-none overflow-hidden">
       {/* Segmented Progress Bar */}
       {activeConfig.type !== 'Diagnostic' && (
-        <div className="w-full flex gap-[2px] h-[3px] mt-4 mb-12 bg-white/5 px-4">
+        <div className="w-full flex gap-1 h-3 mt-2 mb-8 rounded-full overflow-hidden bg-slate-900 px-1 border border-slate-800">
           {steps.map((step, idx) => (
             <div 
               key={idx}
-              className={`h-full transition-all duration-700 rounded-full ${
+              className={`h-full transition-all duration-300 rounded-sm ${
                 idx < currentStepIndex 
-                  ? 'bg-white/10' 
+                  ? 'opacity-20' 
                   : idx === currentStepIndex 
-                    ? 'bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] scale-y-150' 
-                    : step.type === 'HOLD' ? 'bg-white/30' : 'bg-white/10'
-              }`}
+                    ? 'opacity-100 ring-2 ring-white scale-y-125 shadow-[0_0_15px_rgba(255,255,255,0.6)] z-10' 
+                    : 'opacity-60'
+              } ${step.type === 'HOLD' ? 'bg-red-500' : 'bg-blue-500'}`}
               style={{ flex: step.duration }}
             />
           ))}
         </div>
       )}
 
-      <div className="absolute top-8 right-8 z-10">
-        <button onClick={stopSession} className="p-2 text-white/20 hover:text-white transition-colors">
-          <X size={24} strokeWidth={1.5} />
+      <div className="absolute top-6 right-6 z-10">
+        <button onClick={stopSession} className="p-2 text-slate-400 hover:text-white transition-colors">
+          <X size={32} />
         </button>
       </div>
 
-      <div className="text-center mt-8 space-y-1">
-        <h2 className="text-[10px] text-white/30 uppercase tracking-[0.5em] font-black">{activeConfig.name}</h2>
+      <div className="text-center mb-8 space-y-1">
+        <h2 className="text-sm text-slate-500 uppercase tracking-[0.3em] font-bold">{activeConfig.name}</h2>
         {currentPhase !== 'DIAGNOSTIC' && (
-          <p className="text-xs font-medium text-white/20 tracking-widest uppercase">Round {currentRound} / {activeConfig.rounds}</p>
+          <p className="text-xl font-bold text-slate-400">Round {currentRound} / {activeConfig.rounds}</p>
         )}
       </div>
 
       <div className="flex flex-col items-center justify-center flex-1 w-full">
-        <div className={`text-sm font-black mb-8 tracking-[0.4em] transition-colors duration-1000 uppercase ${getPhaseColor()}`}>
+        <div className={`text-2xl sm:text-3xl font-black mb-4 tracking-[0.2em] transition-colors duration-500 uppercase ${getPhaseColor()}`}>
           {currentPhase}
         </div>
-        <div className={`text-[9rem] sm:text-[12rem] font-black tabular-nums tracking-[-0.05em] leading-none transition-all duration-300 ${getPhaseColor()}`}>
+        <div className={`text-8xl sm:text-9xl md:text-[12rem] font-black tabular-nums tracking-tighter transition-all duration-300 ${getPhaseColor()}`}>
           {formatTime(timeLeft)}
         </div>
         
         {currentPhase === 'DIAGNOSTIC' && (
-          <div className="mt-12 flex items-center gap-2 text-white/20 max-w-xs text-center">
-            <Info size={14} />
-            <p className="text-[10px] uppercase tracking-wider font-bold">Stop when you can no longer hold.</p>
+          <div className="mt-8 flex items-center gap-2 text-slate-500 max-w-xs text-center">
+            <Info size={16} />
+            <p className="text-xs">Stop the timer when you can no longer hold your breath.</p>
           </div>
         )}
       </div>
 
-      {/* Up Next - Minimalist */}
+      {/* Up Next */}
       {activeConfig.type !== 'Diagnostic' && currentPhase !== 'FINISHED' && (
-        <div className="w-full max-w-[200px] mb-12">
-          <div className="flex flex-col gap-2">
-            {steps.slice(currentStepIndex + 1, currentStepIndex + 2).map((step, idx) => (
-              <div key={idx} className="flex justify-between items-center opacity-40">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Next: {step.type}</span>
-                <span className="text-[10px] font-mono">{formatTime(step.duration)}</span>
+        <div className="w-full max-w-xs mb-8 space-y-2 bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Up Next</p>
+          <div className="space-y-1">
+            {steps.slice(currentStepIndex + 1, currentStepIndex + 4).map((step, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <span className={step.type === 'HOLD' ? 'text-red-400/80' : 'text-blue-400/80'}>
+                  {step.type} {Math.floor((currentStepIndex + 1 + idx) / 2) + 1}
+                </span>
+                <span className="text-slate-400 tabular-nums font-mono">{formatTime(step.duration)}</span>
               </div>
             ))}
+            {currentStepIndex + 1 >= steps.length && (
+              <p className="text-sm text-slate-600 italic">Finish</p>
+            )}
           </div>
         </div>
       )}
 
-      <div className="flex items-center gap-8 mb-16">
+      {currentPhase !== 'DIAGNOSTIC' && (
+        <div className="w-full max-w-md bg-slate-900 h-2 rounded-full overflow-hidden mb-12 border border-slate-800">
+          <div 
+            className="h-full bg-blue-500 transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+            style={{ width: `${(currentRound / activeConfig.rounds) * 100}%` }}
+          />
+        </div>
+      )}
+
+      <div className="flex gap-6 mb-12">
         {currentPhase === 'HOLD' && isPaused && (
-          <div className="flex gap-12">
+          <>
             <button 
               onClick={() => validateRound(true)}
-              className="group flex flex-col items-center gap-3 transition-transform active:scale-95"
+              className="bg-green-600 border border-green-500 p-8 rounded-full text-white hover:bg-green-500 transition-all flex flex-col items-center justify-center gap-2 shadow-lg shadow-green-900/20"
+              title="Success"
             >
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-black">
-                <Check size={40} strokeWidth={2.5} />
-              </div>
-              <span className="text-[10px] font-black tracking-[0.3em] text-white">SUCCESS</span>
+              <Check size={32} strokeWidth={3} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Success</span>
             </button>
             <button 
               onClick={() => validateRound(false)}
-              className="group flex flex-col items-center gap-3 transition-transform active:scale-95"
+              className="bg-red-600 border border-red-500 p-8 rounded-full text-white hover:bg-red-500 transition-all flex flex-col items-center justify-center gap-2 shadow-lg shadow-red-900/20"
+              title="Failed"
             >
-              <div className="w-20 h-20 rounded-full border border-white/20 flex items-center justify-center text-white/20">
-                <X size={40} strokeWidth={2.5} />
-              </div>
-              <span className="text-[10px] font-black tracking-[0.3em] text-white/20">FAILED</span>
+              <X size={32} strokeWidth={3} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Failed</span>
             </button>
-          </div>
+          </>
         )}
 
         {currentPhase !== 'FINISHED' && !(currentPhase === 'HOLD' && isPaused) && (
           <button 
             onClick={togglePause}
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+            className={`p-8 rounded-full text-white transition-all flex items-center justify-center border shadow-xl ${
               isPaused 
-                ? 'bg-white text-black' 
-                : 'bg-black border border-white/10 text-white/40'
+                ? 'bg-blue-600 border-blue-500 hover:bg-blue-500 shadow-blue-900/20' 
+                : 'bg-slate-800 border-slate-700 hover:bg-slate-700'
             }`}
           >
             {isPaused ? <Play size={32} fill="currentColor" /> : <Pause size={32} fill="currentColor" />}
@@ -234,17 +247,16 @@ export const TimerView: React.FC = () => {
         {!(currentPhase === 'HOLD' && isPaused) && (
           <button 
             onClick={stopSession}
-            className="w-16 h-16 rounded-full border border-white/5 flex items-center justify-center text-white/10 hover:text-red-500 transition-colors"
+            className="bg-slate-800 border border-slate-700 p-8 rounded-full text-white hover:bg-slate-700 hover:border-red-500/50 transition-all group flex items-center justify-center shadow-xl"
           >
-            <Square size={24} fill="currentColor" />
+            <Square size={32} fill="currentColor" className="group-hover:text-red-500 transition-colors" />
           </button>
         )}
       </div>
       
-      <footer className="mb-8 opacity-10">
-        <p className="text-[8px] uppercase tracking-[0.8em] font-black text-white">Deep Calm</p>
+      <footer className="mb-4">
+        <p className="text-[10px] text-slate-600 uppercase tracking-widest font-black">Stay Focused. Keep Calm.</p>
       </footer>
     </div>
   );
-
 };
