@@ -64,6 +64,7 @@ interface AppState {
   startSession: (config: TableConfig) => void;
   pauseSession: () => void;
   resumeSession: () => void;
+  togglePause: () => void;
   stopSession: () => void;
   tick: () => void;
   addHistory: (record: SessionRecord) => Promise<void>;
@@ -309,17 +310,33 @@ export const useAppStore = create<AppState>()(
 
       pauseSession: () => set({ isPaused: true }),
       resumeSession: () => set({ isPaused: false }),
+      togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
 
       stopSession: () => {
-        const { currentPhase, timeLeft } = get();
+        const { currentPhase, timeLeft, activeConfig, currentRound, profile, addHistory } = get();
         if (currentPhase === 'DIAGNOSTIC') {
           get().updateMaxHold(timeLeft);
         }
+        
+        // Log history before stopping if it's a regular training table
+        if (activeConfig && activeConfig.type !== 'Diagnostic' && currentPhase !== 'FINISHED') {
+          addHistory({
+              id: crypto.randomUUID(),
+              username: profile?.username || 'unknown',
+              configId: activeConfig.id,
+              tableName: activeConfig.name,
+              timestamp: Date.now(),
+              completedRounds: currentPhase === 'BREATHE' ? currentRound : currentRound - 1,
+              totalDuration: 0, // Not used for regular tables
+              completed: false // Interrupted
+          });
+        }
+
         set({ isActive: false, currentPhase: 'FINISHED', isPaused: false });
       },
 
       tick: () => {
-        const { timeLeft, currentPhase, currentRound, activeConfig, isActive, isPaused } = get();
+        const { timeLeft, currentPhase, currentRound, activeConfig, isActive, isPaused, profile, addHistory } = get();
         if (!isActive || !activeConfig || isPaused) return;
 
         if (currentPhase === 'DIAGNOSTIC') {
@@ -349,6 +366,17 @@ export const useAppStore = create<AppState>()(
                 timeLeft: activeConfig.initialHoldTime + (activeConfig.holdIncrement * (nextRound - 1))
               });
             } else {
+              // End of session - log success
+              addHistory({
+                  id: crypto.randomUUID(),
+                  username: profile?.username || 'unknown',
+                  configId: activeConfig.id,
+                  tableName: activeConfig.name,
+                  timestamp: Date.now(),
+                  completedRounds: currentRound,
+                  totalDuration: 0,
+                  completed: true
+              });
               set({ currentPhase: 'FINISHED', isActive: false });
             }
           }

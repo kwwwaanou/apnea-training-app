@@ -17,6 +17,7 @@ export const TimerView: React.FC = () => {
     isPaused,
     resumeSession,
     pauseSession,
+    togglePause,
     addHistory 
   } = useAppStore();
 
@@ -55,19 +56,19 @@ export const TimerView: React.FC = () => {
     }
   }, [timeLeft, currentPhase, isActive, activeConfig]);
 
-  // History logging
+  // History logging for DIAGNOSTIC only (Training is handled in store)
   const hasSavedHistory = React.useRef(false);
 
   useEffect(() => {
-      if (currentPhase === 'FINISHED' && activeConfig && !hasSavedHistory.current) {
+      if (currentPhase === 'FINISHED' && activeConfig?.type === 'Diagnostic' && !hasSavedHistory.current) {
           addHistory({
               id: crypto.randomUUID(),
               username: profile?.username || 'unknown',
               configId: activeConfig.id,
               tableName: activeConfig.name,
               timestamp: Date.now(),
-              completedRounds: currentRound,
-              totalDuration: timeLeft, // For diagnostic, timeLeft is the result
+              completedRounds: 1,
+              totalDuration: timeLeft,
               completed: true
           });
           hasSavedHistory.current = true;
@@ -76,7 +77,7 @@ export const TimerView: React.FC = () => {
       if (isActive && currentPhase !== 'FINISHED') {
           hasSavedHistory.current = false;
       }
-  }, [currentPhase, activeConfig, currentRound, addHistory, isActive, profile, timeLeft]);
+  }, [currentPhase, activeConfig, addHistory, isActive, profile, timeLeft]);
 
   if (!activeConfig) return null;
 
@@ -96,9 +97,48 @@ export const TimerView: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const steps = React.useMemo(() => {
+    if (!activeConfig || activeConfig.type === 'Diagnostic') return [];
+    const sequence = [];
+    for (let i = 1; i <= activeConfig.rounds; i++) {
+      sequence.push({
+        type: 'HOLD',
+        duration: activeConfig.initialHoldTime + (activeConfig.holdIncrement * (i - 1))
+      });
+      sequence.push({
+        type: 'BREATHE',
+        duration: Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (i - 1)))
+      });
+    }
+    return sequence;
+  }, [activeConfig]);
+
+  const currentStepIndex = currentPhase === 'PREPARATION' ? -1 : 
+    currentPhase === 'HOLD' ? (currentRound - 1) * 2 : 
+    currentPhase === 'BREATHE' ? (currentRound - 1) * 2 + 1 : -1;
+
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-6 select-none">
-      <div className="absolute top-6 right-6">
+    <div className="fixed inset-0 bg-black z-50 flex flex-col items-center p-6 select-none overflow-hidden">
+      {/* Segmented Progress Bar */}
+      {activeConfig.type !== 'Diagnostic' && (
+        <div className="w-full flex gap-0.5 h-1.5 mt-2 mb-8 rounded-full overflow-hidden bg-gray-900">
+          {steps.map((step, idx) => (
+            <div 
+              key={idx}
+              className={`h-full transition-all duration-300 ${
+                idx < currentStepIndex 
+                  ? 'opacity-20' 
+                  : idx === currentStepIndex 
+                    ? 'opacity-100 ring-1 ring-white' 
+                    : 'opacity-60'
+              } ${step.type === 'HOLD' ? 'bg-red-600' : 'bg-blue-600'}`}
+              style={{ flex: step.duration }}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="absolute top-6 right-6 z-10">
         <button onClick={stopSession} className="p-2 text-gray-400 hover:text-white transition-colors">
           <X size={32} />
         </button>
@@ -111,7 +151,7 @@ export const TimerView: React.FC = () => {
         )}
       </div>
 
-      <div className="flex flex-col items-center justify-center flex-1">
+      <div className="flex flex-col items-center justify-center flex-1 w-full">
         <div className={`text-2xl sm:text-3xl font-black mb-4 tracking-[0.2em] transition-colors duration-500 uppercase ${getPhaseColor()}`}>
           {currentPhase}
         </div>
@@ -127,6 +167,26 @@ export const TimerView: React.FC = () => {
         )}
       </div>
 
+      {/* Up Next */}
+      {activeConfig.type !== 'Diagnostic' && currentPhase !== 'FINISHED' && (
+        <div className="w-full max-w-xs mb-8 space-y-2">
+          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-bold">Up Next</p>
+          <div className="space-y-1">
+            {steps.slice(currentStepIndex + 1, currentStepIndex + 4).map((step, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <span className={step.type === 'HOLD' ? 'text-red-500/80' : 'text-blue-500/80'}>
+                  {step.type} {Math.floor((currentStepIndex + 1 + idx) / 2) + 1}
+                </span>
+                <span className="text-gray-500 tabular-nums font-mono">{formatTime(step.duration)}</span>
+              </div>
+            ))}
+            {currentStepIndex + 1 >= steps.length && (
+              <p className="text-sm text-gray-700 italic">Finish</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {currentPhase !== 'DIAGNOSTIC' && (
         <div className="w-full max-w-md bg-gray-900 h-1.5 rounded-full overflow-hidden mb-12">
           <div 
@@ -136,22 +196,26 @@ export const TimerView: React.FC = () => {
         </div>
       )}
 
-      <div className="flex gap-8 mb-12">
-        {currentPhase === 'DIAGNOSTIC' && isPaused ? (
+      <div className="flex gap-4 mb-12">
+        {currentPhase !== 'FINISHED' && (
           <button 
-            onClick={resumeSession}
-            className="bg-blue-600 border border-blue-500 p-8 rounded-full text-white hover:bg-blue-500 transition-all flex items-center justify-center"
+            onClick={togglePause}
+            className={`p-8 rounded-full text-white transition-all flex items-center justify-center border ${
+              isPaused 
+                ? 'bg-blue-600 border-blue-500 hover:bg-blue-500' 
+                : 'bg-gray-900 border-gray-800 hover:bg-gray-800'
+            }`}
           >
-            <Play size={32} fill="currentColor" />
-          </button>
-        ) : (
-          <button 
-            onClick={stopSession}
-            className="bg-gray-900 border border-gray-800 p-8 rounded-full text-white hover:bg-gray-800 hover:border-red-500/50 transition-all group"
-          >
-            <Square size={32} fill="currentColor" className="group-hover:text-red-500 transition-colors" />
+            {isPaused ? <Play size={32} fill="currentColor" /> : <Pause size={32} fill="currentColor" />}
           </button>
         )}
+
+        <button 
+          onClick={stopSession}
+          className="bg-gray-900 border border-gray-800 p-8 rounded-full text-white hover:bg-gray-800 hover:border-red-500/50 transition-all group flex items-center justify-center"
+        >
+          <Square size={32} fill="currentColor" className="group-hover:text-red-500 transition-colors" />
+        </button>
       </div>
       
       <footer className="mb-4">
