@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useAppStore, TableConfig } from '../store/useAppStore';
+import { useAppStore } from '../store/useAppStore';
+import { TableConfig } from '../types';
 import { Play, History, Clock, Settings, User, TrendingUp, ShieldAlert, CheckCircle2, LogOut, Cloud, Edit2, Check, X, Download, Upload, Database } from 'lucide-react';
 import { audioEngine } from '../lib/audio';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -13,6 +14,7 @@ export const Dashboard: React.FC = () => {
   
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingTable, setPendingTable] = useState<TableConfig | null>(null);
+  const [dynamicScalingEnabled, setDynamicScalingEnabled] = useState(false);
   
   // Manual PB Edit State
   const [isEditingPB, setIsEditingPB] = useState(false);
@@ -98,7 +100,8 @@ export const Dashboard: React.FC = () => {
     initialHoldTime: Math.round(profile.maxHoldBaseline * 0.5),
     initialRestTime: Math.round(profile.maxHoldBaseline * 0.5),
     holdIncrement: 0,
-    restDecrement: 15
+    restDecrement: 15,
+    dynamicScaling: dynamicScalingEnabled
   };
 
   const smartO2: TableConfig = {
@@ -109,7 +112,8 @@ export const Dashboard: React.FC = () => {
     initialHoldTime: Math.round(profile.maxHoldBaseline * 0.4),
     initialRestTime: profile.maxHoldBaseline,
     holdIncrement: 15,
-    restDecrement: 0
+    restDecrement: 0,
+    dynamicScaling: dynamicScalingEnabled
   };
 
   const diagnosticTable: TableConfig = {
@@ -245,10 +249,23 @@ export const Dashboard: React.FC = () => {
 
       {/* Training Tables */}
       <section className="space-y-4">
-        <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-          <Play size={18} className="text-blue-500" fill="currentColor" />
-          Training Plans
-        </h2>
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-white">
+            <Play size={18} className="text-blue-500" fill="currentColor" />
+            Training Plans
+          </h2>
+          <button 
+            onClick={() => setDynamicScalingEnabled(!dynamicScalingEnabled)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${
+              dynamicScalingEnabled 
+                ? 'bg-blue-500/10 border-blue-500 text-blue-400' 
+                : 'bg-gray-900 border-gray-800 text-gray-500'
+            }`}
+          >
+            <div className={`w-2 h-2 rounded-full ${dynamicScalingEnabled ? 'bg-blue-500 animate-pulse' : 'bg-gray-700'}`} />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Dynamic Scaling</span>
+          </button>
+        </div>
         {profile.maxHoldBaseline > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button

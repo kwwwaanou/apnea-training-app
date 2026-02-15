@@ -2,43 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
-
-export type Phase = 'PREPARATION' | 'HOLD' | 'BREATHE' | 'FINISHED' | 'DIAGNOSTIC';
-
-export interface UserProfile {
-  id: string;
-  username: string;
-  maxHoldBaseline: number; // seconds
-  lastDiagnosticDate: number;
-  preferences: {
-    voiceCues: boolean;
-    safetyAcknowledged: boolean;
-  };
-}
-
-export interface TableConfig {
-  id: string;
-  name: string;
-  type: 'CO2' | 'O2' | 'Custom' | 'Diagnostic';
-  rounds: number;
-  initialHoldTime: number; // seconds
-  initialRestTime: number; // seconds
-  holdIncrement: number;   // seconds
-  restDecrement: number;   // seconds
-}
-
-export interface SessionRecord {
-  id: string;
-  username?: string;
-  user_id?: string;
-  configId: string;
-  tableName: string;
-  timestamp: number;
-  completedRounds: number;
-  totalDuration: number;
-  completed: boolean;
-  notes?: string;
-}
+import { Phase, UserProfile, TableConfig, SessionRecord } from '../types';
 
 interface AppState {
   user: User | null;
@@ -372,17 +336,31 @@ export const useAppStore = create<AppState>()(
               timeLeft: activeConfig.initialHoldTime + (activeConfig.holdIncrement * (currentRound - 1))
             });
           } else if (currentPhase === 'HOLD') {
+            let nextRestTime = Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (currentRound - 1)));
+            
+            // Dynamic Scaling for CO2: Reduce recovery by an extra 5s per round progress
+            if (activeConfig.dynamicScaling && activeConfig.type === 'CO2' && currentRound > 1) {
+              nextRestTime = Math.max(5, nextRestTime - 5);
+            }
+
             set({ 
               currentPhase: 'BREATHE', 
-              timeLeft: Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (currentRound - 1)))
+              timeLeft: nextRestTime
             });
           } else if (currentPhase === 'BREATHE') {
             if (currentRound < activeConfig.rounds) {
               const nextRound = currentRound + 1;
+              let nextHoldTime = activeConfig.initialHoldTime + (activeConfig.holdIncrement * (nextRound - 1));
+
+              // Dynamic Scaling for O2: Increase hold by an extra 5s
+              if (activeConfig.dynamicScaling && activeConfig.type === 'O2') {
+                nextHoldTime += 5;
+              }
+
               set({ 
                 currentRound: nextRound,
                 currentPhase: 'HOLD',
-                timeLeft: activeConfig.initialHoldTime + (activeConfig.holdIncrement * (nextRound - 1))
+                timeLeft: nextHoldTime
               });
             } else {
               // End of session - log success

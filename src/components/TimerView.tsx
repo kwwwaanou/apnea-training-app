@@ -101,13 +101,24 @@ export const TimerView: React.FC = () => {
     if (!activeConfig || activeConfig.type === 'Diagnostic') return [];
     const sequence = [];
     for (let i = 1; i <= activeConfig.rounds; i++) {
+      let holdDuration = activeConfig.initialHoldTime + (activeConfig.holdIncrement * (i - 1));
+      let breatheDuration = Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (i - 1)));
+
+      if (activeConfig.dynamicScaling && i > 1) {
+        if (activeConfig.type === 'CO2') {
+          breatheDuration = Math.max(5, breatheDuration - 5);
+        } else if (activeConfig.type === 'O2') {
+          holdDuration += 5;
+        }
+      }
+
       sequence.push({
         type: 'HOLD',
-        duration: activeConfig.initialHoldTime + (activeConfig.holdIncrement * (i - 1))
+        duration: holdDuration
       });
       sequence.push({
         type: 'BREATHE',
-        duration: Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (i - 1)))
+        duration: breatheDuration
       });
     }
     return sequence;
