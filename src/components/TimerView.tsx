@@ -18,10 +18,12 @@ export const TimerView: React.FC = () => {
     resumeSession,
     pauseSession,
     togglePause,
-    addHistory 
+    addHistory,
+    validateRound,
+    isScalingEnabled
   } = useAppStore();
 
-  useWakeLock(isActive && !isPaused);
+  useWakeLock(isActive && !isPaused && (currentPhase !== 'HOLD' || timeLeft > 0));
 
   useEffect(() => {
     let interval: number;
@@ -104,7 +106,7 @@ export const TimerView: React.FC = () => {
       let holdDuration = activeConfig.initialHoldTime + (activeConfig.holdIncrement * (i - 1));
       let breatheDuration = Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (i - 1)));
 
-      if (activeConfig.dynamicScaling && i > 1) {
+      if (isScalingEnabled && activeConfig.dynamicScaling && i > currentRound) {
         if (activeConfig.type === 'CO2') {
           breatheDuration = Math.max(5, breatheDuration - 5);
         } else if (activeConfig.type === 'O2') {
@@ -122,7 +124,7 @@ export const TimerView: React.FC = () => {
       });
     }
     return sequence;
-  }, [activeConfig]);
+  }, [activeConfig, isScalingEnabled]);
 
   const currentStepIndex = currentPhase === 'PREPARATION' ? -1 : 
     currentPhase === 'HOLD' ? (currentRound - 1) * 2 : 
@@ -132,16 +134,16 @@ export const TimerView: React.FC = () => {
     <div className="fixed inset-0 bg-black z-50 flex flex-col items-center p-6 select-none overflow-hidden">
       {/* Segmented Progress Bar */}
       {activeConfig.type !== 'Diagnostic' && (
-        <div className="w-full flex gap-0.5 h-1.5 mt-2 mb-8 rounded-full overflow-hidden bg-gray-900">
+        <div className="w-full flex gap-1 h-2 mt-2 mb-8 rounded-full overflow-hidden bg-gray-900 px-1">
           {steps.map((step, idx) => (
             <div 
               key={idx}
-              className={`h-full transition-all duration-300 ${
+              className={`h-full transition-all duration-300 rounded-sm ${
                 idx < currentStepIndex 
-                  ? 'opacity-20' 
+                  ? 'opacity-30' 
                   : idx === currentStepIndex 
-                    ? 'opacity-100 ring-1 ring-white' 
-                    : 'opacity-60'
+                    ? 'opacity-100 ring-2 ring-white scale-y-110 shadow-[0_0_10px_rgba(255,255,255,0.5)]' 
+                    : 'opacity-70'
               } ${step.type === 'HOLD' ? 'bg-red-600' : 'bg-blue-600'}`}
               style={{ flex: step.duration }}
             />
@@ -208,7 +210,26 @@ export const TimerView: React.FC = () => {
       )}
 
       <div className="flex gap-4 mb-12">
-        {currentPhase !== 'FINISHED' && (
+        {currentPhase === 'HOLD' && isPaused && (
+          <>
+            <button 
+              onClick={() => validateRound(true)}
+              className="bg-green-600 border border-green-500 p-8 rounded-full text-white hover:bg-green-500 transition-all flex items-center justify-center"
+              title="Success"
+            >
+              <div className="text-2xl font-bold">✅</div>
+            </button>
+            <button 
+              onClick={() => validateRound(false)}
+              className="bg-red-600 border border-red-500 p-8 rounded-full text-white hover:bg-red-500 transition-all flex items-center justify-center"
+              title="Failed"
+            >
+              <div className="text-2xl font-bold">❌</div>
+            </button>
+          </>
+        )}
+
+        {currentPhase !== 'FINISHED' && !(currentPhase === 'HOLD' && isPaused) && (
           <button 
             onClick={togglePause}
             className={`p-8 rounded-full text-white transition-all flex items-center justify-center border ${

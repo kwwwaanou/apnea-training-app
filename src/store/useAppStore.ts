@@ -17,6 +17,7 @@ interface AppState {
   isGuest: boolean;
   isHydrated: boolean; // Add hydration flag
   isPaused: boolean;
+  isScalingEnabled: boolean;
   
   // Actions
   setUser: (user: User | null) => void;
@@ -37,6 +38,7 @@ interface AppState {
   exportData: () => string;
   importData: (jsonData: string) => Promise<{ success: boolean; message: string }>;
   setHydrated: () => void;
+  validateRound: (success: boolean) => void;
 }
 
 const initialState = {
@@ -49,6 +51,7 @@ const initialState = {
   activeConfig: null,
   isActive: false,
   isPaused: false,
+  isScalingEnabled: true,
   isInitialSyncDone: false,
   isGuest: false,
   isHydrated: false,
@@ -277,6 +280,7 @@ export const useAppStore = create<AppState>()(
           currentRound: 1,
           isActive: true,
           isPaused: config.type === 'Diagnostic', // Pause by default for Diagnostic
+          isScalingEnabled: true,
         });
       },
 
@@ -319,7 +323,7 @@ export const useAppStore = create<AppState>()(
 
       tick: () => {
         if (!get().isHydrated) return; // Prevent state change before hydration
-        const { timeLeft, currentPhase, currentRound, activeConfig, isActive, isPaused, profile, addHistory } = get();
+        const { timeLeft, currentPhase, currentRound, activeConfig, isActive, isPaused, profile, addHistory, isScalingEnabled } = get();
         if (!isActive || !activeConfig || isPaused) return;
 
         if (currentPhase === 'DIAGNOSTIC') {
@@ -336,24 +340,14 @@ export const useAppStore = create<AppState>()(
               timeLeft: activeConfig.initialHoldTime + (activeConfig.holdIncrement * (currentRound - 1))
             });
           } else if (currentPhase === 'HOLD') {
-            let nextRestTime = Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (currentRound - 1)));
-            
-            // Dynamic Scaling for CO2: Reduce recovery by an extra 5s per round progress
-            if (activeConfig.dynamicScaling && activeConfig.type === 'CO2' && currentRound > 1) {
-              nextRestTime = Math.max(5, nextRestTime - 5);
-            }
-
-            set({ 
-              currentPhase: 'BREATHE', 
-              timeLeft: nextRestTime
-            });
+            set({ isPaused: true });
           } else if (currentPhase === 'BREATHE') {
             if (currentRound < activeConfig.rounds) {
               const nextRound = currentRound + 1;
               let nextHoldTime = activeConfig.initialHoldTime + (activeConfig.holdIncrement * (nextRound - 1));
 
               // Dynamic Scaling for O2: Increase hold by an extra 5s
-              if (activeConfig.dynamicScaling && activeConfig.type === 'O2') {
+              if (isScalingEnabled && activeConfig.dynamicScaling && activeConfig.type === 'O2' && currentRound >= 1) {
                 nextHoldTime += 5;
               }
 
@@ -378,6 +372,30 @@ export const useAppStore = create<AppState>()(
             }
           }
         }
+      },
+
+      validateRound: (success: boolean) => {
+        const { activeConfig, currentRound, isScalingEnabled } = get();
+        if (!activeConfig) return;
+
+        let nextRestTime = Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (currentRound - 1)));
+        
+        // Success condition: Apply Dynamic Scaling if enabled
+        if (success) {
+            // Dynamic Scaling for CO2: Reduce recovery by an extra 5s per round progress
+            if (isScalingEnabled && activeConfig.dynamicScaling && activeConfig.type === 'CO2' && currentRound >= 1) {
+              nextRestTime = Math.max(5, nextRestTime - 5);
+            }
+        } else {
+            // Failed: Disable scaling for the rest of the session
+            set({ isScalingEnabled: false });
+        }
+
+        set({ 
+          currentPhase: 'BREATHE', 
+          timeLeft: nextRestTime,
+          isPaused: false
+        });
       },
 
       addHistory: async (record) => {
