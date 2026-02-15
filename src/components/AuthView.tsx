@@ -215,7 +215,7 @@ export const AuthView: React.FC = () => {
           {/* Version tag for mobile users */}
           <div className="pt-8 text-center">
             <span className="text-[10px] text-slate-600 uppercase tracking-widest font-medium">
-              v1.2.3-stable
+              v1.2.4-stable
             </span>
           </div>
         </div>

@@ -98,6 +98,7 @@ export const useAppStore = create<AppState>()(
       setHydrated: () => set({ isHydrated: true }),
 
       setUser: (user) => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const currentUser = get().user;
         // Only trigger update if user actually changed to avoid logout on refresh
         if (user?.id !== currentUser?.id) {
@@ -111,6 +112,7 @@ export const useAppStore = create<AppState>()(
       },
 
       setGuestUser: (username) => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const { profile } = get();
         
         // If we already have a profile with this name, just switch to guest mode
@@ -136,6 +138,7 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: async () => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const { user } = get();
         if (user) {
           await supabase.auth.signOut();
@@ -155,10 +158,12 @@ export const useAppStore = create<AppState>()(
       },
 
       setProfile: (profile) => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         set({ profile });
       },
 
       syncData: async () => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const { user, history, isGuest } = get();
         if (!user || isGuest) return;
 
@@ -246,6 +251,7 @@ export const useAppStore = create<AppState>()(
       },
 
       updateMaxHold: async (seconds) => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const { profile, user, isGuest } = get();
         const now = Date.now();
         if (profile) {
@@ -273,6 +279,7 @@ export const useAppStore = create<AppState>()(
       },
 
       setSafetyAcknowledged: async (acknowledged) => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const { profile, user, isGuest } = get();
         if (profile) {
           const updatedProfile = {
@@ -298,6 +305,7 @@ export const useAppStore = create<AppState>()(
       },
 
       startSession: (config) => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         set({
           activeConfig: config,
           currentPhase: config.type === 'Diagnostic' ? 'DIAGNOSTIC' : 'PREPARATION',
@@ -308,11 +316,21 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      pauseSession: () => set({ isPaused: true }),
-      resumeSession: () => set({ isPaused: false }),
-      togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
+      pauseSession: () => {
+        if (!get().isHydrated) return;
+        set({ isPaused: true });
+      },
+      resumeSession: () => {
+        if (!get().isHydrated) return;
+        set({ isPaused: false });
+      },
+      togglePause: () => {
+        if (!get().isHydrated) return;
+        set((state) => ({ isPaused: !state.isPaused }));
+      },
 
       stopSession: () => {
+        if (!get().isHydrated) return;
         const { currentPhase, timeLeft, activeConfig, currentRound, profile, addHistory } = get();
         if (currentPhase === 'DIAGNOSTIC') {
           get().updateMaxHold(timeLeft);
@@ -336,6 +354,7 @@ export const useAppStore = create<AppState>()(
       },
 
       tick: () => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const { timeLeft, currentPhase, currentRound, activeConfig, isActive, isPaused, profile, addHistory } = get();
         if (!isActive || !activeConfig || isPaused) return;
 
@@ -384,6 +403,7 @@ export const useAppStore = create<AppState>()(
       },
 
       addHistory: async (record) => {
+        if (!get().isHydrated) return; // Prevent state change before hydration
         const { user } = get();
         set((state) => ({ history: [record, ...state.history].slice(0, 100) }));
 
@@ -395,7 +415,7 @@ export const useAppStore = create<AppState>()(
               config_id: record.configId,
               table_name: record.tableName,
               timestamp: record.timestamp,
-              completed_rounds: record.completedRounds,
+              completed_rounds: record.completed_rounds,
               total_duration: record.totalDuration,
               completed: record.completed,
               notes: record.notes
@@ -406,7 +426,10 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      clearHistory: () => set({ history: [] }),
+      clearHistory: () => {
+        if (!get().isHydrated) return;
+        set({ history: [] });
+      },
 
       exportData: () => {
         const { profile, history } = get();
@@ -448,8 +471,31 @@ export const useAppStore = create<AppState>()(
           if (error) {
             console.error('Hydration error:', error);
           } else if (rehydratedState) {
+            // Explicitly set hydrated to true
             rehydratedState.setHydrated();
+            console.log('Storage rehydrated successfully');
           }
+        };
+      },
+      merge: (persistedState, currentState) => {
+        // Deep merge logic to ensure we don't overwrite user data with defaults
+        const typedPersisted = persistedState as Partial<AppState>;
+        
+        // Validation: If profile is corrupted or empty, don't merge it
+        const hasValidProfile = typedPersisted.profile && typedPersisted.profile.username;
+        
+        return {
+          ...currentState,
+          ...typedPersisted,
+          // Selective merge for critical data
+          history: (typedPersisted.history && typedPersisted.history.length > 0) 
+            ? typedPersisted.history 
+            : currentState.history,
+          profile: hasValidProfile 
+            ? typedPersisted.profile 
+            : currentState.profile,
+          // Always keep isHydrated false initially, will be set by onRehydrateStorage
+          isHydrated: false, 
         };
       },
       partialize: (state) => ({
