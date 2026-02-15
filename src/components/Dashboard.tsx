@@ -136,279 +136,122 @@ export const Dashboard: React.FC = () => {
     .reverse();
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8">
+    <div className="max-w-2xl mx-auto p-6 sm:p-12 space-y-16">
       {/* Toast Notification */}
       {toast.visible && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] bg-green-500 text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center gap-2 animate-bounce">
-          <Check size={20} />
+        <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] bg-white text-black px-8 py-4 rounded-2xl shadow-2xl font-black text-xs tracking-widest uppercase animate-in fade-in slide-in-from-top-4 duration-500">
           {toast.message}
         </div>
       )}
 
-      <header className="flex justify-between items-center py-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-black tracking-tight italic">APNEA<span className="text-blue-500">CORE</span></h1>
-          <div className="bg-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1.5 border border-slate-700">
-            <Cloud size={12} className="text-blue-400" />
-            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Cloud Sync</span>
-          </div>
+      <header className="flex justify-between items-center">
+        <div className="flex flex-col">
+          <h1 className="text-xl font-black tracking-[0.2em] text-white">APNEA<span className="text-white/20">CORE</span></h1>
+          <span className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] mt-1">v1.2.7 Stable</span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <div className="text-sm font-bold text-white">{profile.username}</div>
-            <div className="flex items-center justify-end gap-2">
-              {isEditingPB ? (
-                <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 border border-slate-700">
-                  <input 
-                    type="number" 
-                    value={newPBValue}
-                    onChange={(e) => setNewPBValue(e.target.value)}
-                    className="w-16 bg-transparent text-white text-[10px] text-center outline-none"
-                    placeholder="Secs"
-                    autoFocus
-                  />
-                  <button onClick={handleSavePB} className="text-green-500 hover:text-green-400">
-                    <Check size={12} />
-                  </button>
-                  <button onClick={() => setIsEditingPB(false)} className="text-red-500 hover:text-red-400">
-                    <X size={12} />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest">
-                    PB: {Math.floor(profile.maxHoldBaseline / 60)}:{(profile.maxHoldBaseline % 60).toString().padStart(2, '0')}
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setNewPBValue(profile.maxHoldBaseline.toString());
-                      setIsEditingPB(true);
-                    }}
-                    className="text-gray-600 hover:text-blue-500 transition-colors"
-                  >
-                    <Edit2 size={10} />
-                  </button>
-                </div>
-              )}
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">{profile.username}</div>
+            <div className="text-[10px] text-white/20 uppercase tracking-[0.2em]">
+              PB: {Math.floor(profile.maxHoldBaseline / 60)}:{(profile.maxHoldBaseline % 60).toString().padStart(2, '0')}
             </div>
           </div>
           <button 
             onClick={() => logout()}
-            className="bg-gray-900 p-3 rounded-full border border-gray-800 text-gray-400 hover:text-white transition-colors"
-            title="Sign Out"
+            className="text-white/10 hover:text-white transition-colors"
           >
-            <LogOut size={20} />
+            <LogOut size={18} />
           </button>
         </div>
       </header>
 
-      {/* Diagnostic & Stats */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 bg-gray-900 border border-gray-800 p-6 rounded-3xl space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="font-bold flex items-center gap-2 text-white">
-              <TrendingUp size={18} className="text-blue-500" />
-              Progress
-            </h2>
-          </div>
-          <div className="h-48 w-full">
-            {chartData.length > 1 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                  <XAxis dataKey="date" hide />
-                  <YAxis hide domain={['auto', 'auto']} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', borderRadius: '12px' }}
-                    itemStyle={{ color: '#3b82f6' }}
-                  />
-                  <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-600 text-sm italic">
-                Complete multiple diagnostics to see trends
-              </div>
-            )}
-          </div>
-        </div>
-
+      {/* Main Action: Diagnostic */}
+      <section>
         <button 
           onClick={() => handleStartSession(diagnosticTable)}
-          className="bg-blue-600 hover:bg-blue-700 p-8 rounded-3xl text-left flex flex-col justify-between transition-colors group"
+          className="w-full bg-white text-black p-12 rounded-[2rem] flex flex-col items-center gap-4 transition-transform active:scale-[0.98] group"
         >
-          <div className="bg-white/10 w-fit p-3 rounded-2xl group-hover:scale-110 transition-transform">
-            <Clock size={24} className="text-white" />
-          </div>
-          <div>
-            <div className="text-white font-black text-2xl">Diagnostic</div>
-            <div className="text-blue-100 text-sm">Update your baseline</div>
+          <Clock size={32} strokeWidth={2.5} />
+          <div className="text-center">
+            <div className="font-black text-2xl uppercase tracking-tighter">Diagnostic</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Update Baseline</div>
           </div>
         </button>
       </section>
 
       {/* Training Tables */}
-      <section className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-            <Play size={18} className="text-blue-500" fill="currentColor" />
-            Training Plans
-          </h2>
+      <section className="space-y-8">
+        <div className="flex justify-between items-center px-2">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Training</h2>
           <button 
             onClick={() => setDynamicScalingEnabled(!dynamicScalingEnabled)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${
-              dynamicScalingEnabled 
-                ? 'bg-blue-500/10 border-blue-500 text-blue-400' 
-                : 'bg-gray-900 border-gray-800 text-gray-500'
+            className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+              dynamicScalingEnabled ? 'text-blue-500' : 'text-white/10'
             }`}
           >
-            <div className={`w-2 h-2 rounded-full ${dynamicScalingEnabled ? 'bg-blue-500 animate-pulse' : 'bg-gray-700'}`} />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Dynamic Scaling</span>
+            Scaling {dynamicScalingEnabled ? 'ON' : 'OFF'}
           </button>
         </div>
+
         {profile.maxHoldBaseline > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               onClick={() => handleStartSession(smartCO2)}
-              className="bg-gray-900 border border-gray-800 p-6 rounded-2xl text-left hover:border-blue-500 transition-all"
+              className="bg-[#080808] border border-white/5 p-8 rounded-3xl text-center hover:border-white/20 transition-all active:scale-95"
             >
-              <h3 className="font-bold text-xl mb-1 text-white">Adaptive CO2</h3>
-              <p className="text-gray-500 text-sm">
-                Rounds: 8 • Hold: {smartCO2.initialHoldTime}s (50%)
+              <h3 className="font-black text-lg text-white uppercase tracking-tight">CO2 Tolerance</h3>
+              <p className="text-white/20 text-[10px] font-black uppercase tracking-widest mt-2">
+                8 Rounds • {smartCO2.initialHoldTime}s Hold
               </p>
             </button>
             <button
               onClick={() => handleStartSession(smartO2)}
-              className="bg-gray-900 border border-gray-800 p-6 rounded-2xl text-left hover:border-blue-500 transition-all"
+              className="bg-[#080808] border border-white/5 p-8 rounded-3xl text-center hover:border-white/20 transition-all active:scale-95"
             >
-              <h3 className="font-bold text-xl mb-1 text-white">Adaptive O2</h3>
-              <p className="text-gray-500 text-sm">
-                Rounds: 8 • Rest: {smartO2.initialRestTime}s (100%)
+              <h3 className="font-black text-lg text-white uppercase tracking-tight">O2 Hypoxia</h3>
+              <p className="text-white/20 text-[10px] font-black uppercase tracking-widest mt-2">
+                8 Rounds • {smartO2.initialRestTime}s Rest
               </p>
             </button>
           </div>
         ) : (
-          <div className="bg-gray-900/50 border border-dashed border-gray-800 rounded-2xl p-8 text-center space-y-4">
-            <p className="text-gray-400">Run a Diagnostic to unlock Adaptive Smart Tables.</p>
+          <div className="bg-[#050505] border border-dashed border-white/5 rounded-3xl p-12 text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">Run Diagnostic to Unlock</p>
           </div>
         )}
       </section>
 
-      {/* Data & Settings */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-          <Database size={18} className="text-blue-500" />
-          Data & Settings
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button 
-            onClick={() => {
-              setNewPBValue(profile.maxHoldBaseline.toString());
-              setIsEditingPB(true);
-            }}
-            className="bg-gray-900 border border-gray-800 p-6 rounded-2xl flex flex-col items-center gap-3 hover:border-blue-500 transition-all group"
-          >
-            <div className="bg-blue-500/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
-              <Edit2 size={24} className="text-blue-500" />
-            </div>
-            {isEditingPB ? (
-              <div className="flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center gap-2 bg-slate-800 rounded-lg p-2 border border-slate-700">
-                  <input 
-                    type="number" 
-                    value={newPBValue}
-                    onChange={(e) => setNewPBValue(e.target.value)}
-                    className="w-20 bg-transparent text-white text-sm text-center outline-none"
-                    placeholder="Secs"
-                    autoFocus
-                  />
-                  <button onClick={handleSavePB} className="bg-green-600 p-1 rounded text-white hover:bg-green-500">
-                    <Check size={16} />
-                  </button>
-                  <button onClick={() => setIsEditingPB(false)} className="bg-red-600 p-1 rounded text-white hover:bg-red-500">
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <span className="font-bold text-white">Set Record</span>
-            )}
-          </button>
-          
-          <button 
-            onClick={handleExport}
-            className="bg-gray-900 border border-gray-800 p-6 rounded-2xl flex flex-col items-center gap-3 hover:border-green-500 transition-all group"
-          >
-            <div className="bg-green-500/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
-              <Download size={24} className="text-green-500" />
-            </div>
-            <span className="font-bold text-white">Export Backup</span>
-          </button>
-
-          <button 
-            onClick={handleImport}
-            className="bg-gray-900 border border-gray-800 p-6 rounded-2xl flex flex-col items-center gap-3 hover:border-purple-500 transition-all group"
-          >
-            <div className="bg-purple-500/10 p-3 rounded-xl group-hover:scale-110 transition-transform">
-              <Upload size={24} className="text-purple-500" />
-            </div>
-            <span className="font-bold text-white">Import Backup</span>
-          </button>
-        </div>
-      </section>
-
-      {/* History */}
-      <section className="space-y-4">
-        <div className="flex justify-between items-end">
-          <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-            <History size={18} className="text-blue-500" />
-            Recent Logs
-          </h2>
-          {history.length > 0 && (
-            <button onClick={clearHistory} className="text-xs text-gray-500 hover:text-red-500">
-              Clear All
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          {history.slice(0, 5).map((record) => (
-            <div key={record.id} className="bg-gray-900 border border-gray-800 p-4 rounded-xl flex justify-between items-center hover:bg-slate-800/50 transition-colors">
-              <div>
-                <h4 className="font-semibold text-sm text-white">{record.tableName}</h4>
-                <p className="text-[10px] text-gray-500 uppercase tracking-tighter">
-                  {new Date(record.timestamp).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="text-xs font-mono text-blue-500">
-                  {record.tableName === 'Max Breath Hold' 
-                    ? `${Math.floor(record.totalDuration/60)}:${(record.totalDuration%60).toString().padStart(2, '0')}`
-                    : `${record.completedRounds} Rounds`}
-                </div>
-              </div>
-            </div>
-          ))}
-          {history.length === 0 && (
-             <div className="text-gray-600 text-sm italic py-4 text-center">No records found. Training sessions will be synced here.</div>
-          )}
-        </div>
+      {/* Data Management - Simplified */}
+      <section className="flex justify-center gap-12 pt-8 border-t border-white/5">
+        <button onClick={handleExport} className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 hover:text-white transition-colors flex items-center gap-2">
+          <Download size={14} /> Export
+        </button>
+        <button onClick={handleImport} className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 hover:text-white transition-colors flex items-center gap-2">
+          <Upload size={14} /> Import
+        </button>
+        <button 
+          onClick={() => {
+            setNewPBValue(profile.maxHoldBaseline.toString());
+            setIsEditingPB(true);
+          }}
+          className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 hover:text-white transition-colors flex items-center gap-2"
+        >
+          <Edit2 size={14} /> Record
+        </button>
       </section>
 
       {/* Safety Modal */}
       {showSafetyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
-          <div className="max-w-md w-full bg-gray-900 border border-red-900/50 p-8 rounded-3xl space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black">
+          <div className="max-w-sm w-full space-y-12">
             <div className="flex justify-center">
-              <div className="bg-red-500/10 p-4 rounded-full">
-                <ShieldAlert size={48} className="text-red-500" />
-              </div>
+              <ShieldAlert size={64} className="text-white" strokeWidth={1} />
             </div>
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black text-white">SAFETY FIRST</h2>
-              <div className="text-gray-400 text-sm space-y-4">
-                <p className="font-bold text-red-400 underline uppercase">NEVER TRAIN ALONE IN WATER.</p>
-                <p>Dry training only. Do not practice while driving or operating machinery. Blackouts can happen without warning.</p>
+            <div className="text-center space-y-6">
+              <h2 className="text-2xl font-black text-white tracking-tighter italic uppercase">Safety Warning</h2>
+              <div className="text-white/40 text-[10px] font-black uppercase tracking-widest leading-loose">
+                <p className="text-white underline mb-4">DRY TRAINING ONLY.</p>
+                <p>NEVER IN WATER. NEVER ALONE. NEVER WHILE DRIVING.</p>
               </div>
             </div>
             <button
@@ -417,14 +260,38 @@ export const Dashboard: React.FC = () => {
                 setShowSafetyModal(false);
                 if (pendingTable) startSession(pendingTable);
               }}
-              className="w-full bg-white text-black font-black py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+              className="w-full bg-white text-black font-black py-6 rounded-2xl text-xs tracking-[0.3em] hover:bg-gray-200 transition-colors"
             >
-              <CheckCircle2 size={20} />
-              I UNDERSTAND THE RISKS
+              I ACCEPT
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Record Editor Modal (Simple) */}
+      {isEditingPB && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
+          <div className="bg-white p-12 rounded-[2rem] w-full max-w-xs space-y-8">
+            <div className="text-center">
+              <h3 className="text-black font-black uppercase tracking-widest text-xs mb-8">Set New Record</h3>
+              <input 
+                type="number" 
+                value={newPBValue}
+                onChange={(e) => setNewPBValue(e.target.value)}
+                className="w-full bg-transparent text-black text-6xl font-black text-center outline-none border-b-4 border-black pb-4 mb-4"
+                placeholder="0"
+                autoFocus
+              />
+              <p className="text-[10px] font-black uppercase text-black/40">Seconds</p>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setIsEditingPB(false)} className="flex-1 text-[10px] font-black uppercase tracking-widest text-black/20">Cancel</button>
+              <button onClick={handleSavePB} className="flex-1 bg-black text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest">Save</button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
+
 };
