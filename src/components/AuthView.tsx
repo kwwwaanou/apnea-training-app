@@ -41,7 +41,7 @@ export const AuthView: React.FC = () => {
       }
 
       const finalEmail = authMode === 'QUICK_SYNC' 
-        ? `${username.trim().toLowerCase()}@example.com`
+        ? `${username.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@example.com`
         : email;
 
       if (isSignUp) {
