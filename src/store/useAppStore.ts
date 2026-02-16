@@ -282,7 +282,7 @@ export const useAppStore = create<AppState>()(
           timeLeft: config.type === 'Diagnostic' ? 0 : 15,
           currentRound: 1,
           isActive: true,
-          isPaused: config.type === 'Diagnostic', // Pause by default for Diagnostic
+          isPaused: false, // Start immediately
           isScalingEnabled: true,
         });
       },

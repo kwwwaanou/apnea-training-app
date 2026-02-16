@@ -47,8 +47,8 @@ export const TimerView: React.FC = () => {
         audioEngine.beepLow();
     }
 
-    // Countdown beeps (last 3s)
-    if (currentPhase !== 'DIAGNOSTIC' && timeLeft <= 3 && timeLeft > 0) {
+    // Countdown beeps (last 5s)
+    if (currentPhase !== 'DIAGNOSTIC' && timeLeft <= 5 && timeLeft > 0) {
       audioEngine.beepCountdown();
     }
     

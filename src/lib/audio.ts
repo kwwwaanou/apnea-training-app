@@ -3,10 +3,11 @@ class AudioEngine {
 
   public init() {
     if (!this.ctx) {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // @ts-ignore
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     }
     // Handle iOS/Mobile locked state
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
   }
@@ -14,6 +15,11 @@ class AudioEngine {
   private playTone(freq: number, duration: number, volume: number = 0.1) {
     this.init();
     if (!this.ctx) return;
+
+    // Web Audio API by default on many platforms (including iOS Safari recently) 
+    // can mix with others if the session category is set correctly at the native level.
+    // In a browser/PWA context, 'ambient' behavior is often achieved by NOT using 
+    // <audio> elements with exclusive locks. Web Audio API is generally better for mixing.
 
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
