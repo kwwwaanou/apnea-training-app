@@ -113,7 +113,7 @@ export const Dashboard: React.FC = () => {
     rounds: 8,
     initialHoldTime: Math.round(profile.maxHoldBaseline * 0.4),
     initialRestTime: profile.maxHoldBaseline,
-    holdIncrement: 15,
+    holdIncrement: 5,
     restDecrement: 0,
     dynamicScaling: dynamicScalingEnabled
   };

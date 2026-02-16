@@ -176,7 +176,7 @@ export const TimerView: React.FC = () => {
 
   const steps = React.useMemo(() => {
     if (!activeConfig || activeConfig.type === 'Diagnostic') return [];
-    const sequence = [];
+    const sequence: { type: string; duration: number; round: number }[] = [];
     for (let i = 1; i <= activeConfig.rounds; i++) {
       let holdDuration = activeConfig.initialHoldTime + (activeConfig.holdIncrement * (i - 1));
       let breatheDuration = Math.max(0, activeConfig.initialRestTime - (activeConfig.restDecrement * (i - 1)));
@@ -189,31 +189,38 @@ export const TimerView: React.FC = () => {
         }
       }
 
-      sequence.push({
-        type: 'HOLD',
-        duration: holdDuration
-      });
-      sequence.push({
-        type: 'BREATHE',
-        duration: breatheDuration
-      });
+      if (holdDuration > 0) {
+        sequence.push({
+          type: 'HOLD',
+          duration: holdDuration,
+          round: i
+        });
+      }
+      if (breatheDuration > 0) {
+        sequence.push({
+          type: 'BREATHE',
+          duration: breatheDuration,
+          round: i
+        });
+      }
     }
     return sequence;
   }, [activeConfig, isScalingEnabled, currentRound]);
 
-  const currentStepIndex = currentPhase === 'PREPARATION' ? -1 : 
-    currentPhase === 'HOLD' ? (currentRound - 1) * 2 : 
-    currentPhase === 'BREATHE' ? (currentRound - 1) * 2 + 1 : -1;
+  const currentStepIndex = React.useMemo(() => {
+    if (!isActive || currentPhase === 'PREPARATION' || currentPhase === 'FINISHED') return -1;
+    return steps.findIndex(s => s.type === currentPhase && s.round === currentRound);
+  }, [isActive, currentPhase, currentRound, steps]);
 
   return (
     <div className="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center p-6 select-none overflow-hidden">
       {/* Segmented Progress Bar */}
       {activeConfig.type !== 'Diagnostic' && (
         <div className="w-full flex gap-1 h-3 mt-2 mb-8 rounded-full overflow-hidden bg-slate-900 px-1 border border-slate-800">
-          {steps.map((step, idx) => (
+          {steps.filter(step => step.duration > 0).map((step, idx) => (
             <div 
               key={idx}
-              className={`h-full transition-all duration-300 rounded-sm ${
+              className={`h-full transition-all duration-300 rounded-sm min-w-[2px] ${
                 idx < currentStepIndex 
                   ? 'opacity-20' 
                   : idx === currentStepIndex 

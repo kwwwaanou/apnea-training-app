@@ -302,7 +302,7 @@ export const useAppStore = create<AppState>()(
 
       stopSession: () => {
         if (!get().isHydrated) return;
-        const { currentPhase, timeLeft, activeConfig, isActive } = get();
+        const { currentPhase, timeLeft, isActive } = get();
         
         if (!isActive) return;
 
@@ -310,7 +310,7 @@ export const useAppStore = create<AppState>()(
           if (currentPhase === 'DIAGNOSTIC') {
             get().updateMaxHold(timeLeft);
           }
-          set({ isActive: false, currentPhase: 'FINISHED', isPaused: false });
+          set({ isActive: false, currentPhase: 'FINISHED', isPaused: false, activeConfig: null });
         } else {
           set({ currentPhase: 'FINISHED', isPaused: true });
         }
