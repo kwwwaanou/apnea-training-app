@@ -10,6 +10,10 @@ class AudioEngine {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    
+    // iOS/Safari specific: Ensure we don't interrupt background audio
+    // By default, Web Audio API in Safari acts as "ambient" and mixes with others
+    // unless an <audio> or <video> element with a media session takes exclusive control.
   }
 
   private playTone(freq: number, duration: number, volume: number = 0.1) {
