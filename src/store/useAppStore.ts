@@ -491,16 +491,21 @@ export const useAppStore = create<AppState>()(
         };
       },
       merge: (persistedState, currentState) => {
+        // P0 FIX: Return currentState if persistedState is null/undefined
+        // This prevents "Cannot read properties of undefined (reading 'profile')"
         if (!persistedState) return currentState;
-        // Deep merge logic to ensure we don't overwrite user data with defaults
+        
+        // Additional safety: if persistedState.profile is undefined, don't merge it
         const typedPersisted = persistedState as Partial<AppState>;
         
         // Validation: If profile is corrupted or empty, don't merge it
         const hasValidProfile = typedPersisted.profile && typedPersisted.profile.username;
         
+        // P0 FIX: Build merged state manually to avoid undefined overwriting valid data
         return {
           ...currentState,
-          ...typedPersisted,
+          // Only spread non-undefined properties from persisted state
+          user: typedPersisted.user !== undefined ? typedPersisted.user : currentState.user,
           // Selective merge for critical data
           history: (typedPersisted.history && typedPersisted.history.length > 0) 
             ? typedPersisted.history 
@@ -508,6 +513,7 @@ export const useAppStore = create<AppState>()(
           profile: hasValidProfile 
             ? typedPersisted.profile 
             : currentState.profile,
+          isGuest: typedPersisted.isGuest !== undefined ? typedPersisted.isGuest : currentState.isGuest,
           // Always keep isHydrated false initially, will be set by onRehydrateStorage
           isHydrated: false, 
         };
