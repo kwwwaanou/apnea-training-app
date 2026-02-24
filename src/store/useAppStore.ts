@@ -491,6 +491,7 @@ export const useAppStore = create<AppState>()(
         };
       },
       merge: (persistedState, currentState) => {
+        if (!persistedState) return currentState;
         // Deep merge logic to ensure we don't overwrite user data with defaults
         const typedPersisted = persistedState as Partial<AppState>;
         

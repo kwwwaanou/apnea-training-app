@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { audioEngine } from '../lib/audio';
+import { audioEngine, generateId } from '../lib/audio';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { X, Play, Pause, Square, Info, Check } from 'lucide-react';
 
@@ -25,6 +25,17 @@ export const TimerView: React.FC = () => {
 
   useWakeLock(isActive && !isPaused && (currentPhase !== 'HOLD' || timeLeft > 0));
 
+  const prevPhaseRef = useRef(currentPhase);
+
+  // Beep de début de phase HOLD - se déclenche quand on ENTRE dans HOLD
+  useEffect(() => {
+    const prevPhase = prevPhaseRef.current;
+    if (currentPhase === 'HOLD' && (prevPhase === 'BREATHE' || prevPhase === 'PREPARATION')) {
+      audioEngine.beepHigh();
+    }
+    prevPhaseRef.current = currentPhase;
+  }, [currentPhase]);
+
   useEffect(() => {
     let interval: number;
     if (isActive && !isPaused && currentPhase !== 'FINISHED') {
@@ -40,9 +51,6 @@ export const TimerView: React.FC = () => {
     if (!isActive) return;
 
     // Phase start beeps
-    if (currentPhase === 'HOLD' && timeLeft === (activeConfig?.initialHoldTime || 0)) {
-        audioEngine.beepHigh();
-    }
     if (currentPhase === 'BREATHE' && timeLeft === (activeConfig?.initialRestTime || 0)) {
         audioEngine.beepLow();
     }
@@ -65,7 +73,7 @@ export const TimerView: React.FC = () => {
     if (!activeConfig) return;
     
     addHistory({
-      id: crypto.randomUUID(),
+      id: generateId(),
       username: profile?.username || 'unknown',
       configId: activeConfig.id,
       tableName: activeConfig.name,
@@ -83,7 +91,7 @@ export const TimerView: React.FC = () => {
   useEffect(() => {
       if (currentPhase === 'FINISHED' && activeConfig?.type === 'Diagnostic' && !hasSavedHistory.current) {
           addHistory({
-              id: crypto.randomUUID(),
+              id: generateId(),
               username: profile?.username || 'unknown',
               configId: activeConfig.id,
               tableName: activeConfig.name,

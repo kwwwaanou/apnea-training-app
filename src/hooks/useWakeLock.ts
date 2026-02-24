@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 export const useWakeLock = (isActive: boolean) => {
   const wakeLock = useRef<any>(null);
 
+  // Pour le request
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && isActive) {
@@ -12,19 +13,20 @@ export const useWakeLock = (isActive: boolean) => {
         } catch (err) {
           console.error(`${err.name}, ${err.message}`);
         }
-      } else if (wakeLock.current) {
+      }
+    };
+
+    requestWakeLock();
+  }, [isActive]);
+
+  // Pour le release (séparé)
+  useEffect(() => {
+    return () => {
+      if (wakeLock.current) {
         wakeLock.current.release();
         wakeLock.current = null;
         console.log('Wake Lock released');
       }
     };
-
-    requestWakeLock();
-
-    return () => {
-      if (wakeLock.current) {
-        wakeLock.current.release();
-      }
-    };
-  }, [isActive]);
+  }, []);
 };
