@@ -9,7 +9,8 @@ export const generateId = () => {
 class AudioEngine {
   private ctx: AudioContext | null = null;
 
-  public init() {
+  // Prepare audio context - MUST be called during user interaction (iOS Safari requirement)
+  public prepare() {
     if (!this.ctx) {
       // @ts-ignore
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -18,10 +19,11 @@ class AudioEngine {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
-    
-    // iOS/Safari specific: Ensure we don't interrupt background audio
-    // By default, Web Audio API in Safari acts as "ambient" and mixes with others
-    // unless an <audio> or <video> element with a media session takes exclusive control.
+  }
+
+  public init() {
+    // Legacy method - now just calls prepare for compatibility
+    this.prepare();
   }
 
   private playTone(freq: number, duration: number, volume: number = 0.1) {

@@ -42,7 +42,8 @@ export const Dashboard: React.FC = () => {
   }
 
   const handleStartSession = (table: TableConfig) => {
-    audioEngine.init();
+    // Prepare audio context BEFORE starting (iOS Safari requirement)
+    audioEngine.prepare();
     if (!profile.preferences.safetyAcknowledged) {
       setPendingTable(table);
       setShowSafetyModal(true);
